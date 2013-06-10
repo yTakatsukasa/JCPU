@@ -21,7 +21,7 @@
 #include "gdbserver.h"
 #include "openrisc.h"
 
-#define QCPU_OPENRISC_DEBUG 1
+//#define QCPU_OPENRISC_DEBUG 1
 
 
 namespace {
@@ -313,8 +313,10 @@ bool openrisc_vm::disas_insn(virt_addr_t pc_v){
             vm.processing_pc.push(std::make_pair(pc_v, pc_p));
         }
         ~push_and_pop_pc(){
+
+            vm.gen_set_reg(REG_PC, vm.gen_const(vm.processing_pc.top().first + 4));
 #if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
-            vm.gen_set_reg(REG_PC, vm.gen_const(vm.processing_pc.top().second));
+            //vm.gen_set_reg(REG_PC, vm.gen_const(vm.processing_pc.top().second));
 #endif
             vm.processing_pc.pop();
         }
@@ -365,8 +367,8 @@ const basic_block *openrisc_vm::disas(virt_addr_t start_pc_, int max_insn){
     else{
         qcpu_assert(max_insn ==  1); //only step exec is supported
         const bool done = disas_insn(start_pc_);
-        if(!done) gen_set_reg(REG_PNEXT_PC, gen_const(start_pc + 4));
         pc = start_pc + (done ? 8 : 4);
+        if(!done) gen_set_reg(REG_PNEXT_PC, gen_const(pc));
     }
     std::cerr << "before end_func" << std::endl;
     llvm::Function *const f = end_func();
@@ -699,7 +701,6 @@ void openrisc_vm::start_func(phys_addr_t pc_p){
 }
 
 llvm::Function * openrisc_vm::end_func(){
-    //gen_set_reg(REG_PC, gen_const(processing_pc.top().first));
     llvm::Value *const pc = gen_get_reg(REG_PNEXT_PC, "epilogue");
     builder->CreateCall(mod->getFunction("qcpu_vm_dump_regs"));
     builder->CreateRet(pc);
