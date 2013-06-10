@@ -159,28 +159,19 @@ namespace qcpu{
 namespace gdb{
 
 struct gdb_server::impl{
-    std::string port_str;
+    const unsigned int port;
     explicit impl(unsigned int);
+    void wait_and_run(gdb_target_if &, unsigned int);
 };
 
-gdb_server::impl::impl(unsigned int port)
+gdb_server::impl::impl(unsigned int port) : port(port)
 {
+}
+
+void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
     char buf[32];
-    std::sprintf(buf, "%d", port);
-    port_str = buf;
-}
-
-
-gdb_server::gdb_server(unsigned int port){
-    pimpl = new impl(port);
-}
-
-gdb_server::~gdb_server(){
-    delete pimpl;
-}
-
-void gdb_server::wait_and_run(gdb_target_if &tgt){
-    clx::tcp::acceptor s(clx::tcp::port(pimpl->port_str));
+    std::sprintf(buf, "%d", port_num);
+    clx::tcp::acceptor s(clx::tcp::port(buf));
     clx::tcp::socket clt = s.accept();
     clx::tcp::sockstream ss(clt);
     std::cerr << clt.address().ipaddr() << ':' << clt.address().port()
@@ -265,6 +256,29 @@ void gdb_server::wait_and_run(gdb_target_if &tgt){
     std::cout << clt.address().ipaddr() << ':' << clt.address().port()
         << " Connection was closed" << std::endl;
     clt.close();
+
+}
+
+
+gdb_server::gdb_server(unsigned int port){
+    pimpl = new impl(port);
+}
+
+gdb_server::~gdb_server(){
+    delete pimpl;
+}
+
+void gdb_server::wait_and_run(gdb_target_if &tgt){
+    for(int i = 0; i < 10; ++i){
+        try{
+            pimpl->wait_and_run(tgt, i + pimpl->port);
+        }
+        catch(const clx::system_error &){
+            std::cerr << "Port:" << std::dec << (i + pimpl->port) << " is used, try next" << std::endl;
+            continue;
+        }
+        break;
+    }
 }
 
 } //end of namespace gdbserver
