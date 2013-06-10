@@ -24,7 +24,7 @@ endif
 CFLAGS				:= $(CXXFLAGS)
 LIB_DIRS			:=
 LIBS				:= dl
-LDFLAGS             := $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIBS)) $(shell llvm-config --ldflags --libs)
+LDFLAGS             := $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIBS)) $(shell llvm-config --ldflags --libs) -Wl,-rpath=$(dir $(shell which clang))/../lib64
 SRCS				:= $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp $(dir)/*.c))
 OBJS				:= $(addprefix .,$(addsuffix .o,$(basename $(notdir $(SRCS)))))
 
