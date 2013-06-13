@@ -19,6 +19,7 @@ class openrisc : public qcpu{
     virtual void interrupt(int, bool) QCPU_OVERRIDE;
     virtual void reset(bool)QCPU_OVERRIDE;
     virtual void run(run_option_e)QCPU_OVERRIDE;
+    virtual uint64_t get_total_insn_count()const QCPU_OVERRIDE;
 };
 
 

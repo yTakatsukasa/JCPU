@@ -21,7 +21,7 @@
 #include "gdbserver.h"
 #include "openrisc.h"
 
-//#define QCPU_OPENRISC_DEBUG 1
+//#define QCPU_OPENRISC_DEBUG 3
 
 
 namespace {
@@ -138,6 +138,35 @@ class bb_manager{
     }
 };
 
+class break_point{
+    virt_addr_t pc;
+    public:
+    explicit break_point(virt_addr_t pc) : pc(pc){}
+    virt_addr_t get_pc()const{return pc;}
+};
+
+class bp_manager{
+    std::map<virt_addr_t, break_point *> bps_by_addr;
+    public:
+    void add(virt_addr_t pc){
+        break_point *const bp = new break_point(pc);
+        bps_by_addr.insert(std::make_pair(pc, bp));
+    }
+    bool exists(virt_addr_t pc)const{
+        return bps_by_addr.find(pc) != bps_by_addr.end();
+    }
+    void remove(virt_addr_t pc){
+        std::map<virt_addr_t, break_point *>::iterator it = bps_by_addr.find(pc);
+        qcpu_assert(it != bps_by_addr.end());
+        delete it->second;
+        bps_by_addr.erase(it);
+    }
+    const break_point *find_nearest(virt_addr_t pc)const{
+        const std::map<virt_addr_t, break_point *>::const_iterator it = bps_by_addr.lower_bound(pc);
+        return it == bps_by_addr.end() ? QCPU_NULLPTR : it->second;
+    }
+};
+
 
 class openrisc_vm : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_target_if{
     qcpu_ext_if &ext_ifs;
@@ -194,34 +223,38 @@ class openrisc_vm : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_targe
     target_ulong (*get_reg_func)(uint16_t);
     void (*set_reg_func)(uint16_t, target_ulong);
     bb_manager bb_man;
+    bp_manager bp_man;
     std::stack<std::pair<virt_addr_t, phys_addr_t> > processing_pc;
     int mem_region;
+    uint64_t total_icount;
 
     //gdb_target_if
     virtual unsigned int get_reg_width()const QCPU_OVERRIDE;
     virtual void get_reg_value(std::vector<uint64_t> &)const QCPU_OVERRIDE;
     virtual void set_reg_value(unsigned int, uint64_t)QCPU_OVERRIDE;
-    virtual void run_continue(bool) QCPU_OVERRIDE;
+    virtual run_state_e run_continue(bool) QCPU_OVERRIDE;
     virtual uint64_t read_mem_dbg(uint64_t, unsigned int) QCPU_OVERRIDE;
     virtual void write_mem_dbg(uint64_t, unsigned int, uint64_t) QCPU_OVERRIDE;
-    virtual void set_unset_break_point(bool, unsigned int, uint64_t) QCPU_OVERRIDE;
+    virtual void set_unset_break_point(bool, uint64_t) QCPU_OVERRIDE;
 
     bool is_next_insn_use_flag(phys_addr_t);
-    bool disas_insn(virt_addr_t);
+    bool disas_insn(virt_addr_t, int *);
     bool disas_arith(target_ulong);
     bool disas_logical(target_ulong);
     bool disas_compare_immediate(target_ulong);
     bool disas_compare(target_ulong);
-    bool disas_others(target_ulong);
+    bool disas_others(target_ulong, int *);
     void start_func(phys_addr_t);
     llvm::Function * end_func();
-    const basic_block *disas(virt_addr_t, int);
-    void step_exec();
+    const basic_block *disas(virt_addr_t, int, const break_point *);
+    run_state_e step_exec();
+    phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);} //FIXME implement MMU
     public:
     explicit openrisc_vm(qcpu_ext_if &);
-    void run();
+    run_state_e run();
     void dump_ir()const;
     virtual void dump_regs()const QCPU_OVERRIDE;
+    uint64_t get_total_insn_count()const;
 };
 
 openrisc_vm::openrisc_vm(qcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(QCPU_NULLPTR), cur_bb(QCPU_NULLPTR)
@@ -234,6 +267,7 @@ openrisc_vm::openrisc_vm(qcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(QCPU_NULLPTR
     ebuilder.setEngineKind(llvm::EngineKind::JIT);
     ee = ebuilder.create();
     mem_region = 0;
+    total_icount = 0;
 
 
     const unsigned int bit = sizeof(target_ulong) * 8;
@@ -285,12 +319,12 @@ void openrisc_vm::set_reg_value(unsigned int reg_idx, uint64_t reg_val){
     set_reg_func(reg_idx, reg_val);
 }
 
-void openrisc_vm::run_continue(bool is_step){
+gdb::gdb_target_if::run_state_e openrisc_vm::run_continue(bool is_step){
     if(is_step){
-        step_exec();
+        return step_exec();
     }
     else{
-        run();
+        return run();
     }
 }
 
@@ -301,12 +335,20 @@ void openrisc_vm::write_mem_dbg(uint64_t virt_addr, unsigned int len, uint64_t v
     ext_ifs.mem_write_dbg(virt_addr, len, val);
 }
 
-void openrisc_vm::set_unset_break_point(bool set, unsigned int bid, uint64_t virt_addr){
-    qcpu_assert(!"Breakpoint is not supported yet");
+void openrisc_vm::set_unset_break_point(bool set, uint64_t virt_addr){
+    const virt_addr_t pc_v(virt_addr);
+    if(set){
+        bp_man.add(pc_v);
+        const phys_addr_t pc_p = code_v2p(pc_v);
+        bb_man.invalidate(pc_p, pc_p + static_cast<phys_addr_t>(4));
+    }
+    else
+        bp_man.remove(pc_v);
 }
 
-bool openrisc_vm::disas_insn(virt_addr_t pc_v){
-    const phys_addr_t pc(pc_v);//FIXME translate via MMU
+bool openrisc_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
+    ++(*insn_depth);
+    const phys_addr_t pc = code_v2p(pc_v);
     struct push_and_pop_pc{
         openrisc_vm &vm;
         push_and_pop_pc(openrisc_vm &vm, virt_addr_t pc_v, phys_addr_t pc_p) : vm(vm){
@@ -326,7 +368,7 @@ bool openrisc_vm::disas_insn(virt_addr_t pc_v){
 #if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 0
     std::cout << std::hex << "pc:" << pc << " INSN:" << std::setw(8) << std::setfill('0') << insn << " kind:" << kind << std::endl;
 #endif
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
+#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 2
     builder->CreateCall(mod->getFunction("qcpu_vm_dump_regs"));
 #endif
     switch(kind){
@@ -349,32 +391,47 @@ bool openrisc_vm::disas_insn(virt_addr_t pc_v){
         case 0x39: //compare
             return disas_compare(insn);
         default: //others
-            return disas_others(insn);
+            return disas_others(insn, insn_depth);
     }
+#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 2
+    builder->CreateCall(mod->getFunction("qcpu_vm_dump_regs"));
+#endif
 
 }
 
-const basic_block *openrisc_vm::disas(virt_addr_t start_pc_, int max_insn){
+const basic_block *openrisc_vm::disas(virt_addr_t start_pc_, int max_insn, const break_point *const bp){
     const phys_addr_t start_pc(start_pc_);
     start_func(start_pc);
     target_ulong pc;
+    unsigned int num_insn = 0;
     if(max_insn < 0){
         bool done = false;
         for(pc = start_pc; !done; pc += 4){
-            done = disas_insn(virt_addr_t(pc));
+            if(bp && bp->get_pc() == pc){
+                gen_set_reg(REG_PNEXT_PC, gen_const(pc));
+                break;
+            }
+            int insn_depth = 0;
+            done = disas_insn(virt_addr_t(pc), &insn_depth);
+            num_insn += insn_depth;
         }
     }
     else{
         qcpu_assert(max_insn ==  1); //only step exec is supported
-        const bool done = disas_insn(start_pc_);
+        int insn_depth = 0;
+        const bool done = disas_insn(start_pc_, &insn_depth);
+        num_insn += insn_depth;
         pc = start_pc + (done ? 8 : 4);
-        if(!done) gen_set_reg(REG_PNEXT_PC, gen_const(pc));
+        if(done){
+            gen_set_reg(REG_PC, gen_get_reg(REG_PNEXT_PC));
+        }
+        else{
+            gen_set_reg(REG_PNEXT_PC, gen_const(pc));
+        }
     }
-    std::cerr << "before end_func" << std::endl;
     llvm::Function *const f = end_func();
-    basic_block *const bb = new basic_block(start_pc, phys_addr_t(pc - 4), f, ee, 1 + (pc - start_pc) / 4); //considering delay slot
+    basic_block *const bb = new basic_block(start_pc, phys_addr_t(pc - 4), f, ee, num_insn);
     bb_man.add(bb);
-    std::cerr << "BB is generated" << std::endl;
     return bb;
 }
 
@@ -522,7 +579,7 @@ bool openrisc_vm::disas_compare(target_ulong insn){
     }
 }
 
-bool openrisc_vm::disas_others(target_ulong insn){
+bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
     using namespace llvm;
     const target_ulong op0 = bit_sub<26, 6>(insn);
     const target_ulong op1 = bit_sub<24, 2>(insn);
@@ -537,7 +594,7 @@ bool openrisc_vm::disas_others(target_ulong insn){
     ConstantInt *const n26 = ConstantInt::get(*context, APInt(26, bit_sub<0, 26>(insn)));
     ConstantInt *const I = ConstantInt::get(*context, APInt(16, (bit_sub<21, 5>(insn) << 11) | bit_sub<0, 11>(insn)));
 #if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 0
-    std::cerr << "op0:" << std::hex << op0 << " rA:" << bit_sub<21, 5>(insn) << " rB:" << bit_sub<11, 5>(insn) << " rD" << bit_sub<21, 5>(insn) << " lo16:" << bit_sub<0, 16>(insn) << std::endl;
+    //std::cerr << "op0:" << std::hex << op0 << " rA:" << bit_sub<21, 5>(insn) << " rB:" << bit_sub<11, 5>(insn) << " rD" << bit_sub<21, 5>(insn) << " lo16:" << bit_sub<0, 16>(insn) << std::endl;
 #endif
     switch(op0){
         case 0x00://l.j PC = sext(n26) << 2 + PC
@@ -546,7 +603,7 @@ bool openrisc_vm::disas_others(target_ulong insn){
                 ConstantInt *const pc = gen_get_pc();
                 Value *const pc_offset = builder->CreateShl(builder->CreateSExt(n26, get_reg_type(), mn), 2, mn);
                 gen_set_reg(REG_PNEXT_PC, builder->CreateAdd(pc, pc_offset, mn), mn);
-                const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4)); //delay slot
+                const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 qcpu_or_disas_assert(!ret);
                 return true;
             }
@@ -557,7 +614,7 @@ bool openrisc_vm::disas_others(target_ulong insn){
                 gen_set_reg(REG_PNEXT_PC, builder->CreateAdd(pc, pc_offset));
                 Value *const nd_bit = builder->CreateAnd(builder->CreateLShr(gen_get_reg(REG_CPUCFGR), gen_const(CPUCFGR_ND)), gen_const(1));
                 gen_set_reg(REG_LR, builder->CreateAdd(pc, gen_cond_code(nd_bit, gen_const(4), gen_const(8))));//check spr
-                const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4)); //delay slot
+                const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 qcpu_or_disas_assert(!ret);
                 return true;
             }
@@ -576,7 +633,7 @@ bool openrisc_vm::disas_others(target_ulong insn){
                 Value *const next_pc = gen_cond_code(shifted_flag, taken_pc, not_taken_pc);
                 gen_set_reg(REG_PNEXT_PC, next_pc);
                 gen_set_reg(REG_SR, builder->CreateAnd(flag, ~(static_cast<target_ulong>(1) << SR_F), mn));
-                const bool ret = disas_insn(pc + static_cast<virt_addr_t>(4)); //delay slot
+                const bool ret = disas_insn(pc + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 qcpu_or_disas_assert(!ret);
             }
             return true;
@@ -602,7 +659,7 @@ bool openrisc_vm::disas_others(target_ulong insn){
             {
                 static const char *const mn = "l.jr";
                 gen_set_reg(REG_PNEXT_PC, gen_get_reg(rB, mn), mn);
-                const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4)); //delay slot
+                const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 qcpu_or_disas_assert(!ret);
                 return true;
             }
@@ -702,7 +759,9 @@ void openrisc_vm::start_func(phys_addr_t pc_p){
 
 llvm::Function * openrisc_vm::end_func(){
     llvm::Value *const pc = gen_get_reg(REG_PNEXT_PC, "epilogue");
+#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
     builder->CreateCall(mod->getFunction("qcpu_vm_dump_regs"));
+#endif
     builder->CreateRet(pc);
     llvm::Function *const ret = cur_func;
     cur_func = QCPU_NULLPTR;
@@ -711,31 +770,37 @@ llvm::Function * openrisc_vm::end_func(){
     return ret;
 }
 
-void openrisc_vm::run(){
-    virt_addr_t pc(0x100);
-    extern unsigned int total_icount;
+gdb::gdb_target_if::run_state_e openrisc_vm::run(){
+    virt_addr_t pc(get_reg_func(REG_PC));
     for(;;){
-        const phys_addr_t pc_p(pc); //FIXME implement MMU
-        const basic_block *const bb = bb_man.exists_by_start_addr(pc_p) ? bb_man.find_by_start_addr(pc_p) : disas(pc, -1);
+        const break_point *const nearest = bp_man.find_nearest(pc);
+        const phys_addr_t pc_p = code_v2p(pc);
+        const basic_block *const bb = bb_man.exists_by_start_addr(pc_p) ? bb_man.find_by_start_addr(pc_p) : disas(pc, -1, nearest);
+        if(nearest && nearest->get_pc() == pc){
+            return RUN_STAT_BREAK;
+        }
         pc = bb->exec();
 #if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
         dump_regs();
 #endif
         total_icount += bb->get_icount();
     }
+    qcpu_assert(!"Never comes here");
+    return RUN_STAT_NORMAL;
 }
 
-void openrisc_vm::step_exec(){
-    extern unsigned int total_icount;
+gdb::gdb_target_if::run_state_e openrisc_vm::step_exec(){
     virt_addr_t pc(get_reg_func(REG_PC));
-    const phys_addr_t pc_p(pc); //FIXME implement MMU
+    const break_point *const nearest = bp_man.find_nearest(pc);
+    const phys_addr_t pc_p = code_v2p(pc);
     bb_man.invalidate(pc_p, pc_p + phys_addr_t(4));
-    const basic_block *const bb = bb_man.exists_by_start_addr(pc_p) ? bb_man.find_by_start_addr(pc_p) : disas(pc, 1);
+    const basic_block *const bb = bb_man.exists_by_start_addr(pc_p) ? bb_man.find_by_start_addr(pc_p) : disas(pc, 1, nearest);
     pc = bb->exec();
 #if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
     dump_regs();
 #endif
     total_icount += bb->get_icount();
+    return (nearest && nearest->get_pc() == pc) ? RUN_STAT_BREAK : RUN_STAT_NORMAL;
 }
 
 void openrisc_vm::dump_ir()const{
@@ -770,7 +835,9 @@ void openrisc_vm::dump_regs()const{
     std::cout << std::endl;
 }
 
-
+uint64_t openrisc_vm::get_total_insn_count()const{
+    return total_icount;
+}
 
 openrisc::openrisc(const char *model) : qcpu(), vm(QCPU_NULLPTR){
 }
@@ -800,6 +867,11 @@ void openrisc::run(run_option_e opt){
         qcpu_assert(!"Not supported option");
     }
 }
+
+uint64_t openrisc::get_total_insn_count()const{
+    return vm->get_total_insn_count();
+}
+
 
 } //end of namespace openrisc
 } //end of namespace qcpu

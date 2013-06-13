@@ -2,6 +2,8 @@
 #include "qcpu_internal.h"
 #include "gdbserver.h"
 
+//#define QCPU_GDBSERVER_DEBUG 1
+
 namespace{
 
 class gdb_send_msg{
@@ -179,7 +181,9 @@ void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
     try {
         while (1) {
             gdb_rcv_msg msg(ss);
+#if defined(QCPU_GDBSERVER_DEBUG) && QCPU_GDBSERVER_DEBUG > 0
             std::cout << "Received msg:" << msg << std::endl;
+#endif
             gdb_send_msg smsg;
             if(msg.start_with("qSupported")){
                 smsg << "PacketSize=ff";
@@ -201,11 +205,22 @@ void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
             }
             else if(msg.start_with("c")){//continue
                 smsg << "";
-                tgt.run_continue(false);
+                const gdb_target_if::run_state_e stat = tgt.run_continue(false);
+                if(stat == gdb_target_if::RUN_STAT_BREAK){
+#if defined(QCPU_GDBSERVER_DEBUG) && QCPU_GDBSERVER_DEBUG > 0
+                    std::cerr << "Break point" << std::endl;
+#endif
+                    smsg << "S05";
+                }
             }
             else if(msg.start_with("s")){//step
-                tgt.run_continue(true);
+                const gdb_target_if::run_state_e stat = tgt.run_continue(true);
                 smsg << "S05";
+#if defined(QCPU_GDBSERVER_DEBUG) && QCPU_GDBSERVER_DEBUG > 0
+                if(stat == gdb_target_if::RUN_STAT_BREAK){
+                    std::cerr << "Break point" << std::endl;
+                }
+#endif
             }
             else if(msg.start_with("m")){ //mem read
                 const std::vector<std::string> toks = msg.split();
@@ -223,8 +238,13 @@ void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
                 qcpu_assert(toks.size() >= 3);
                 const unsigned int break_point_id = std::strtol(toks[0].c_str() + 1, QCPU_NULLPTR, 16);
                 const uint64_t addr = std::strtoll(toks[1].c_str(), QCPU_NULLPTR, 16);
-                tgt.set_unset_break_point(toks[0][0] == 'Z', break_point_id, addr);
+                const bool set_bp = toks[0][0] == 'Z';
+                tgt.set_unset_break_point(set_bp, addr);
                 smsg << "OK";
+#if defined(QCPU_GDBSERVER_DEBUG) && QCPU_GDBSERVER_DEBUG > 0
+                std::cerr << (set_bp ? "Set " : "Unset ") << "Break point " << break_point_id
+                    << " at " << std::hex << addr << std::endl;
+#endif
             }
             else if(msg.start_with("g")){//registers
                 const unsigned int reg_width = tgt.get_reg_width();
@@ -239,9 +259,11 @@ void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
             else{
                 qcpu_assert(!"Not supported command");
             }
+#if defined(QCPU_GDBSERVER_DEBUG) && QCPU_GDBSERVER_DEBUG > 0
             std::cout << "Send msg:" << smsg << std::endl;
+#endif
             ss << '+' << smsg;
-            ss << '+';
+            ss << '+' << std::flush;
         }
     }
     catch (clx::socket_error& e) {

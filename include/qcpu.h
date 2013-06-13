@@ -26,6 +26,7 @@ class qcpu{
     virtual void reset(bool) = 0;
     virtual void run(run_option_e) = 0;
     void set_ext_interface(qcpu_ext_if *);
+    virtual uint64_t get_total_insn_count()const = 0;
     static qcpu * create(const char *, const char *);
     
 };

@@ -11,16 +11,13 @@
 //#include "bubblesort.h"
 //#include "bubblesort100.h"
 //#include "bubblesort100_check.h"
-namespace qcpu{namespace openrisc{
-extern unsigned int total_icount;
-unsigned int total_icount = 0;
-} }
 
 class dummy_mem : public qcpu::qcpu_ext_if{
+    const qcpu::qcpu &qcpu_if;
     std::vector<uint32_t> tmp_mem;
     bool prefix_need_to_show;
     public:
-    explicit dummy_mem(const char *fn){
+    dummy_mem(const char *fn, qcpu::qcpu &ifs) : qcpu_if(ifs){
         prefix_need_to_show = true;
         tmp_mem.resize(0x10000 / sizeof(tmp_mem[0]));
 #if 0
@@ -96,7 +93,7 @@ class dummy_mem : public qcpu::qcpu_ext_if{
         else if(addr == 0x60000008){
             //assert(be == 0xF);
             //throw finish_ex();
-            std::cerr << "Simulation done after " << std::dec << qcpu::openrisc::total_icount << " instruction" << std::endl;
+            std::cerr << "Simulation done after " << std::dec << qcpu_if.get_total_insn_count() << " instruction" << std::endl;
             exit(0);
         }
         else{
@@ -130,7 +127,7 @@ int main(int argc, char *argv[]){
 
 
     qcpu::qcpu *or1200 = qcpu::qcpu::create("openrisc", "or1200");
-    dummy_mem mem(argv[1]);
+    dummy_mem mem(argv[1], *or1200);
     or1200->set_ext_interface(&mem);
     or1200->reset(true);
     or1200->reset(false);
