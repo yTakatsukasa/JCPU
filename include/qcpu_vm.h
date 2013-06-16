@@ -4,8 +4,16 @@
 #include <stdint.h>
 #include <vector>
 #include <utility>
+#include <stack>
 #include <llvm/ExecutionEngine/JIT.h> 
+#include <llvm/IRBuilder.h> 
+#include <llvm/PassManager.h> //PassManager
+#include <llvm/Support/raw_ostream.h> //outs()
+#include <llvm/Assembly/PrintModulePass.h> //PrintModulePass
+#include <llvm/Module.h>
+#include "qcpu.h"
 #include "qcpu_internal.h"
+#include "gdbserver.h"
 namespace llvm{class Function;}
 
 namespace qcpu{
@@ -116,6 +124,130 @@ class bp_manager{
     }
 };
 
+template<typename ARCH>
+class qcpu_vm_base : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_target_if{
+    protected:
+    qcpu_ext_if &ext_ifs;
+    llvm::LLVMContext *context;
+    typedef typename ARCH::reg_e reg_e;
+    typedef typename ARCH::sr_flag_e sr_flag_e;
+    typedef typename ARCH::virt_addr_t virt_addr_t;
+    typedef typename ARCH::phys_addr_t phys_addr_t;
+    llvm::IRBuilder<> *builder;
+    llvm::Module *mod;
+    llvm::ExecutionEngine *ee;
+    llvm::Function *cur_func;
+    llvm::BasicBlock *cur_bb;
+    typedef typename ARCH::target_ulong target_ulong;
+    llvm::Type *get_reg_type()const{
+        if(ARCH::reg_bit_width == 32)
+            return builder->getInt32Ty();
+        else if(ARCH::reg_bit_width == 64)
+            return builder->getInt64Ty();
+        else
+            qcpu_assert(!"Not supported yet");
+    }
+    llvm::ConstantInt *reg_index(reg_e r)const{
+        return llvm::ConstantInt::get(*context, llvm::APInt(16, r));
+    }
+    llvm::CallInst *gen_get_reg(llvm::Value *reg, const char *mn = "")const{
+        return builder->CreateCall(mod->getFunction("get_reg"), reg, mn);
+    }
+    llvm::CallInst *gen_get_reg(reg_e r, const char *mn = "")const{
+        return gen_get_reg(reg_index(r), mn);
+    }
+    llvm::CallInst *gen_set_reg(llvm::Value *reg, llvm::Value *val, const char *mn = "")const{
+        return builder->CreateCall2(mod->getFunction("set_reg"), reg, val, mn);
+    }
+    llvm::CallInst *gen_set_reg(reg_e r, llvm::Value *val, const char *mn = "")const{
+        return gen_set_reg(reg_index(r), val, mn);
+    }
+    llvm::ConstantInt * gen_const(target_ulong val)const{
+        return llvm::ConstantInt::get(*context, llvm::APInt(ARCH::reg_bit_width, val));
+    }
+    llvm::ConstantInt * gen_get_pc()const{
+        return gen_const(processing_pc.top().first);
+    }
+    llvm::Value *gen_cond_code(llvm::Value *cond, llvm::Value *t, llvm::Value *f, const char *mn = "")const{//cond must be 1 or 0
+        using namespace llvm;
+        Value *const f_mask = builder->CreateSub(builder->CreateZExt(cond, get_reg_type(), mn), gen_const(1), mn);
+        Value *const t_mask = builder->CreateXor(f_mask, gen_const(~static_cast<target_ulong>(0)), mn);
+        return builder->CreateOr(builder->CreateAnd(t, t_mask, mn), builder->CreateAnd(f, f_mask, mn), mn); // (t & ~t_mask) | (f & f_mask)
+    }
+    llvm::CallInst * gen_sw(llvm::Value *addr, llvm::Value *len, llvm::Value *val, const char *mn = "")const{
+        return builder->CreateCall3(mod->getFunction("helper_mem_write"), addr, len, val, mn);
+    }
+    llvm::CallInst * gen_lw(llvm::Value *addr, llvm::Value *len, const char *mn = "")const{
+        return builder->CreateCall2(mod->getFunction("helper_mem_read"), addr, len, mn);
+    }
+
+    target_ulong (*get_reg_func)(uint16_t);
+    void (*set_reg_func)(uint16_t, target_ulong);
+    bb_manager<ARCH> bb_man;
+    bp_manager<ARCH> bp_man;
+    std::stack<std::pair<virt_addr_t, phys_addr_t> > processing_pc;
+    int mem_region;
+    uint64_t total_icount;
+
+    //gdb_target_if
+    virtual unsigned int get_reg_width()const QCPU_OVERRIDE{
+        return sizeof(target_ulong) * 8;
+    }
+    //virtual void get_reg_value(std::vector<uint64_t> &)const QCPU_OVERRIDE;
+    //virtual void set_reg_value(unsigned int, uint64_t)QCPU_OVERRIDE;
+    virtual run_state_e run_continue(bool is_step) QCPU_OVERRIDE{
+        if(is_step){
+            return step_exec();
+        }
+        else{
+            return run();
+        }
+    }
+    virtual uint64_t read_mem_dbg(uint64_t virt_addr, unsigned int len) QCPU_OVERRIDE{
+        return ext_ifs.mem_read_dbg(virt_addr, len);
+    }
+    virtual void write_mem_dbg(uint64_t virt_addr, unsigned int len, uint64_t val) QCPU_OVERRIDE{
+        ext_ifs.mem_write_dbg(virt_addr, len, val);
+    }
+    virtual void set_unset_break_point(bool set, uint64_t virt_addr) QCPU_OVERRIDE{
+        const virt_addr_t pc_v(virt_addr);
+        if(set){
+            bp_man.add(pc_v);
+            const phys_addr_t pc_p = code_v2p(pc_v);
+            bb_man.invalidate(pc_p, pc_p + static_cast<phys_addr_t>(4));
+        }
+        else
+            bp_man.remove(pc_v);
+    }
+    virtual bool disas_insn(virt_addr_t, int *) = 0;
+    void start_func(phys_addr_t);
+    llvm::Function * end_func();
+    const basic_block<ARCH> *disas(virt_addr_t, int, const break_point<ARCH> *);
+    virtual run_state_e run() = 0;
+    virtual run_state_e step_exec() = 0;
+    phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);} //FIXME implement MMU
+
+    explicit qcpu_vm_base(qcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(QCPU_NULLPTR), cur_bb(QCPU_NULLPTR)
+    {
+
+        context = &llvm::getGlobalContext();
+        builder = new llvm::IRBuilder<>(*context);
+        mod = new llvm::Module("openrisc module", *context);
+        llvm::EngineBuilder ebuilder(mod);
+        ebuilder.setUseMCJIT(true);
+        ebuilder.setEngineKind(llvm::EngineKind::JIT);
+        ee = ebuilder.create();
+        mem_region = 0;
+        total_icount = 0;
+    }
+    public:
+    void dump_ir()const{
+        llvm::PassManager pm;
+        pm.add(createPrintModulePass(&llvm::outs()));
+        pm.run(*mod);
+    }
+    uint64_t get_total_insn_count()const{return total_icount;}
+};
 
 
 } //end of namespace vm

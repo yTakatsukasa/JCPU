@@ -1,20 +1,14 @@
 #include <cstdio>
 #include <iostream>
 #include <iomanip>
-#include <stack>
 
 #include <llvm/LLVMContext.h>
-#include <llvm/IRBuilder.h> 
-#include <llvm/Module.h>
 #include <llvm/ExecutionEngine/JIT.h> 
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/PrettyStackTrace.h>
 #include <llvm/Support/Signals.h>
 #include <llvm/Support/Debug.h> //EnableDebugBuffering
 #include <llvm/Analysis/Verifier.h> //verifyModule
-#include <llvm/PassManager.h> //PassManager
-#include <llvm/Assembly/PrintModulePass.h> //PrintModulePass
-#include <llvm/Support/raw_ostream.h> //outs()
 #include <llvm/Instructions.h> //LoadInst
 
 #include "qcpu_vm.h"
@@ -56,26 +50,27 @@ struct openrisc_arch{
     const static unsigned int reg_bit_width = 32;
     typedef vm::primitive_type_holder<target_ulong, openrisc_arch, 0> virt_addr_t;
     typedef vm::primitive_type_holder<target_ulong, openrisc_arch, 1> phys_addr_t;
-};
+    enum reg_e{
+        REG_GR00, REG_GR01, REG_GR02, REG_GR03,
+        REG_GR04, REG_GR05, REG_GR06, REG_GR07,
+        REG_GR08, REG_GR09, REG_LR = REG_GR09, REG_GR10, REG_GR11,
+        REG_GR12, REG_GR13, REG_GR14, REG_GR15,
+        REG_GR16, REG_GR17, REG_GR18, REG_GR19,
+        REG_GR20, REG_GR21, REG_GR22, REG_GR23,
+        REG_GR24, REG_GR25, REG_GR26, REG_GR27,
+        REG_GR28, REG_GR29, REG_GR30, REG_GR31,
+        REG_PC, REG_SR, REG_CPUCFGR, REG_PNEXT_PC, NUM_REGS
+    };
 
-enum reg_e{
-    REG_GR00, REG_GR01, REG_GR02, REG_GR03,
-    REG_GR04, REG_GR05, REG_GR06, REG_GR07,
-    REG_GR08, REG_GR09, REG_LR = REG_GR09, REG_GR10, REG_GR11,
-    REG_GR12, REG_GR13, REG_GR14, REG_GR15,
-    REG_GR16, REG_GR17, REG_GR18, REG_GR19,
-    REG_GR20, REG_GR21, REG_GR22, REG_GR23,
-    REG_GR24, REG_GR25, REG_GR26, REG_GR27,
-    REG_GR28, REG_GR29, REG_GR30, REG_GR31,
-    REG_PC, REG_SR, REG_CPUCFGR, REG_PNEXT_PC, NUM_REGS
-};
-enum sr_flag_e{
-    SR_SM = 0, SR_TEE, SR_IEE, SR_DCE, SR_ICE, SR_DME, SR_IME, SR_LEE,
-    SR_CE, SR_F, SR_CY, SR_OV, SR_OVE, SR_DSX, SR_EPH, SR_FO, 
-    SR_SUMRA
-};
-enum cpucfgr_bit_e{
-    CPUCFGR_ND = 10
+    enum sr_flag_e{
+        SR_SM = 0, SR_TEE, SR_IEE, SR_DCE, SR_ICE, SR_DME, SR_IME, SR_LEE,
+        SR_CE, SR_F, SR_CY, SR_OV, SR_OVE, SR_DSX, SR_EPH, SR_FO, 
+        SR_SUMRA
+    };
+    enum cpucfgr_bit_e{
+        CPUCFGR_ND = 10
+    };
+
 };
 
 typedef openrisc_arch::virt_addr_t virt_addr_t;
@@ -87,77 +82,12 @@ typedef vm::bb_manager<openrisc_arch> bb_manager;
 typedef vm::break_point<openrisc_arch> break_point;
 typedef vm::bp_manager<openrisc_arch> bp_manager;
 
-class openrisc_vm : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_target_if{
-    qcpu_ext_if &ext_ifs;
-    llvm::LLVMContext *context;
-    llvm::IRBuilder<> *builder;
-    llvm::Module *mod;
-    llvm::ExecutionEngine *ee;
-    llvm::Function *cur_func;
-    llvm::BasicBlock *cur_bb;
-    llvm::Type *get_reg_type()const{
-        return builder->getInt32Ty();
-    }
-    llvm::ConstantInt *reg_index(reg_e r)const{
-        return llvm::ConstantInt::get(*context, llvm::APInt(16, r));
-    }
-    llvm::CallInst *gen_get_reg(llvm::Value *reg, const char *mn = "")const{
-        return builder->CreateCall(mod->getFunction("get_reg"), reg, mn);
-    }
-    llvm::CallInst *gen_get_reg(reg_e r, const char *mn = "")const{
-        return gen_get_reg(reg_index(r), mn);
-    }
-    llvm::CallInst *gen_set_reg(llvm::Value *reg, llvm::Value *val, const char *mn = "")const{
-        return builder->CreateCall2(mod->getFunction("set_reg"), reg, val, mn);
-    }
-    llvm::CallInst *gen_set_reg(reg_e r, llvm::Value *val, const char *mn = "")const{
-        return gen_set_reg(reg_index(r), val, mn);
-    }
-    llvm::ConstantInt * gen_const(target_ulong val)const{
-        return llvm::ConstantInt::get(*context, llvm::APInt(openrisc_arch::reg_bit_width, val));
-    }
-    llvm::ConstantInt * gen_get_pc()const{
-        return gen_const(processing_pc.top().first);
-    }
-    llvm::Value *gen_cond_code(llvm::Value *cond, llvm::Value *t, llvm::Value *f, const char *mn = "")const{//cond must be 1 or 0
-        using namespace llvm;
-        Value *const f_mask = builder->CreateSub(builder->CreateZExt(cond, get_reg_type(), mn), gen_const(1), mn);
-        Value *const t_mask = builder->CreateXor(f_mask, gen_const(~static_cast<target_ulong>(0)), mn);
-        return builder->CreateOr(builder->CreateAnd(t, t_mask, mn), builder->CreateAnd(f, f_mask, mn), mn); // (t & ~t_mask) | (f & f_mask)
-    }
-    llvm::CallInst * gen_sw(llvm::Value *addr, llvm::Value *len, llvm::Value *val, const char *mn = "")const{
-        return builder->CreateCall3(mod->getFunction("helper_mem_write"), addr, len, val, mn);
-    }
-    llvm::CallInst * gen_lw(llvm::Value *addr, llvm::Value *len, const char *mn = "")const{
-        return builder->CreateCall2(mod->getFunction("helper_mem_read"), addr, len, mn);
-    }
-    llvm::Value *gen_set_sr(sr_flag_e flag, llvm::Value *val, const char *mn = "")const{//val must be 0 or 1
-        using namespace llvm;
-        Value *const sr = gen_get_reg(REG_SR, mn);
-        Value *const drop_mask = gen_const(~(static_cast<target_ulong>(1) << flag));
-        Value *const shifted_val = builder->CreateShl(builder->CreateZExt(val, get_reg_type()), flag, mn);
-        Value *const new_sr = builder->CreateOr(builder->CreateAnd(sr, drop_mask, mn), shifted_val, mn);
-        return gen_set_reg(REG_SR, new_sr, mn);
-    }
-    target_ulong (*get_reg_func)(uint16_t);
-    void (*set_reg_func)(uint16_t, target_ulong);
-    bb_manager bb_man;
-    bp_manager bp_man;
-    std::stack<std::pair<virt_addr_t, phys_addr_t> > processing_pc;
-    int mem_region;
-    uint64_t total_icount;
-
+class openrisc_vm : public vm::qcpu_vm_base<openrisc_arch>{
     //gdb_target_if
-    virtual unsigned int get_reg_width()const QCPU_OVERRIDE;
     virtual void get_reg_value(std::vector<uint64_t> &)const QCPU_OVERRIDE;
     virtual void set_reg_value(unsigned int, uint64_t)QCPU_OVERRIDE;
-    virtual run_state_e run_continue(bool) QCPU_OVERRIDE;
-    virtual uint64_t read_mem_dbg(uint64_t, unsigned int) QCPU_OVERRIDE;
-    virtual void write_mem_dbg(uint64_t, unsigned int, uint64_t) QCPU_OVERRIDE;
-    virtual void set_unset_break_point(bool, uint64_t) QCPU_OVERRIDE;
 
-    bool is_next_insn_use_flag(phys_addr_t);
-    bool disas_insn(virt_addr_t, int *);
+    virtual bool disas_insn(virt_addr_t, int *)QCPU_OVERRIDE;
     bool disas_arith(target_ulong);
     bool disas_logical(target_ulong);
     bool disas_compare_immediate(target_ulong);
@@ -165,38 +95,34 @@ class openrisc_vm : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_targe
     bool disas_others(target_ulong, int *);
     void start_func(phys_addr_t);
     llvm::Function * end_func();
+    llvm::Value *gen_set_sr(sr_flag_e flag, llvm::Value *val, const char *mn = "")const{//val must be 0 or 1
+        using namespace llvm;
+        Value *const sr = gen_get_reg(openrisc_arch::REG_SR, mn);
+        Value *const drop_mask = gen_const(~(static_cast<target_ulong>(1) << flag));
+        Value *const shifted_val = builder->CreateShl(builder->CreateZExt(val, get_reg_type()), flag, mn);
+        Value *const new_sr = builder->CreateOr(builder->CreateAnd(sr, drop_mask, mn), shifted_val, mn);
+        return gen_set_reg(openrisc_arch::REG_SR, new_sr, mn);
+    }
     const basic_block *disas(virt_addr_t, int, const break_point *);
-    run_state_e step_exec();
+    virtual run_state_e step_exec() QCPU_OVERRIDE;
     phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);} //FIXME implement MMU
     public:
     explicit openrisc_vm(qcpu_ext_if &);
-    run_state_e run();
-    void dump_ir()const;
+    virtual run_state_e run() QCPU_OVERRIDE;
     virtual void dump_regs()const QCPU_OVERRIDE;
-    uint64_t get_total_insn_count()const;
 };
 
-openrisc_vm::openrisc_vm(qcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(QCPU_NULLPTR), cur_bb(QCPU_NULLPTR)
+openrisc_vm::openrisc_vm(qcpu_ext_if &ifs) : vm::qcpu_vm_base<openrisc_arch>(ifs) 
 {
-    context = &llvm::getGlobalContext();
-    builder = new llvm::IRBuilder<>(*context);
-    mod = new llvm::Module("openrisc module", *context);
-    llvm::EngineBuilder ebuilder(mod);
-    ebuilder.setUseMCJIT(true);
-    ebuilder.setEngineKind(llvm::EngineKind::JIT);
-    ee = ebuilder.create();
-    mem_region = 0;
-    total_icount = 0;
-
 
     const unsigned int bit = sizeof(target_ulong) * 8;
-    const unsigned int num_regs = NUM_REGS;
+    const unsigned int num_regs = openrisc_arch::NUM_REGS;
     llvm::ArrayType *const ATy = llvm::ArrayType::get(llvm::IntegerType::get(*context, bit), num_regs);
     std::vector<llvm::Constant*> Initializer;
     Initializer.reserve(num_regs);
 
     for(unsigned int i = 0; i < num_regs; ++i){
-        const unsigned int reg_init_val = (i == REG_PC || i == REG_PNEXT_PC) ? 0x100 : 0;
+        const unsigned int reg_init_val = (i == openrisc_arch::REG_PC || i == openrisc_arch::REG_PNEXT_PC) ? 0x100 : 0;
         llvm::ConstantInt *const ivc = gen_const(reg_init_val);
         Initializer.push_back(ivc);
     }
@@ -221,48 +147,17 @@ openrisc_vm::openrisc_vm(qcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(QCPU_NULLPTR
 }
 
 
-unsigned int openrisc_vm::get_reg_width()const{
-    return sizeof(target_ulong) * 8;
-}
-
 void openrisc_vm::get_reg_value(std::vector<uint64_t> &regs)const{
     regs.clear();
     for(unsigned int i = 0; i < 32; ++i){
         regs.push_back(get_reg_func(i));
     }
-    //regs.push_back(get_reg_func(REG_PC));
-    regs.push_back(get_reg_func(REG_PNEXT_PC));
+    //regs.push_back(get_reg_func(openrisc_arch::REG_PC));
+    regs.push_back(get_reg_func(openrisc_arch::REG_PNEXT_PC));
 }
 void openrisc_vm::set_reg_value(unsigned int reg_idx, uint64_t reg_val){
     qcpu_assert(reg_idx < 32 + 1);
     set_reg_func(reg_idx, reg_val);
-}
-
-gdb::gdb_target_if::run_state_e openrisc_vm::run_continue(bool is_step){
-    if(is_step){
-        return step_exec();
-    }
-    else{
-        return run();
-    }
-}
-
-uint64_t openrisc_vm::read_mem_dbg(uint64_t virt_addr, unsigned int len){
-    return ext_ifs.mem_read_dbg(virt_addr, len);
-}
-void openrisc_vm::write_mem_dbg(uint64_t virt_addr, unsigned int len, uint64_t val){
-    ext_ifs.mem_write_dbg(virt_addr, len, val);
-}
-
-void openrisc_vm::set_unset_break_point(bool set, uint64_t virt_addr){
-    const virt_addr_t pc_v(virt_addr);
-    if(set){
-        bp_man.add(pc_v);
-        const phys_addr_t pc_p = code_v2p(pc_v);
-        bb_man.invalidate(pc_p, pc_p + static_cast<phys_addr_t>(4));
-    }
-    else
-        bp_man.remove(pc_v);
 }
 
 bool openrisc_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
@@ -275,9 +170,9 @@ bool openrisc_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
         }
         ~push_and_pop_pc(){
 
-            vm.gen_set_reg(REG_PC, vm.gen_const(vm.processing_pc.top().first + 4));
+            vm.gen_set_reg(openrisc_arch::REG_PC, vm.gen_const(vm.processing_pc.top().first + 4));
 #if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
-            //vm.gen_set_reg(REG_PC, vm.gen_const(vm.processing_pc.top().second));
+            //vm.gen_set_reg(openrisc_arch::REG_PC, vm.gen_const(vm.processing_pc.top().second));
 #endif
             vm.processing_pc.pop();
         }
@@ -327,7 +222,7 @@ const basic_block *openrisc_vm::disas(virt_addr_t start_pc_, int max_insn, const
         bool done = false;
         for(pc = start_pc; !done; pc += 4){
             if(bp && bp->get_pc() == pc){
-                gen_set_reg(REG_PNEXT_PC, gen_const(pc));
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_const(pc));
                 break;
             }
             int insn_depth = 0;
@@ -342,10 +237,10 @@ const basic_block *openrisc_vm::disas(virt_addr_t start_pc_, int max_insn, const
         num_insn += insn_depth;
         pc = start_pc + (done ? 8 : 4);
         if(done){
-            gen_set_reg(REG_PC, gen_get_reg(REG_PNEXT_PC));
+            gen_set_reg(openrisc_arch::REG_PC, gen_get_reg(openrisc_arch::REG_PNEXT_PC));
         }
         else{
-            gen_set_reg(REG_PNEXT_PC, gen_const(pc));
+            gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_const(pc));
         }
     }
     llvm::Function *const f = end_func();
@@ -434,25 +329,25 @@ bool openrisc_vm::disas_compare_immediate(target_ulong insn){
 
     switch(op0){
         case 0x00: //l.sfeqi SR[F] = rA == sext(I16)
-            gen_set_sr(SR_F, builder->CreateICmpEQ(gen_get_reg(rA), I16s, "l.sfeqi"), "l.sfeqi");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpEQ(gen_get_reg(rA), I16s, "l.sfeqi"), "l.sfeqi");
             return false;
         case 0x01: //l.sfnei SR[F} = rA != sext(I16)
-            gen_set_sr(SR_F, builder->CreateICmpNE(gen_get_reg(rA), I16s, "l.sfnwi"), "l.sfnei");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpNE(gen_get_reg(rA), I16s, "l.sfnwi"), "l.sfnei");
             return false;
         case 0x02: //l.sfgtui SR[F] = rA > sext(I16)
-            gen_set_sr(SR_F, builder->CreateICmpUGT(gen_get_reg(rA), I16s, "l.sfgtui"), "l.sfgtui");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpUGT(gen_get_reg(rA), I16s, "l.sfgtui"), "l.sfgtui");
             return false;
         case 0x05: //l.sfleui SR[F} = rA <= sext(I16)
-            gen_set_sr(SR_F, builder->CreateICmpULE(gen_get_reg(rA), I16s, "l.sfleui"), "l.sfleui");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpULE(gen_get_reg(rA), I16s, "l.sfleui"), "l.sfleui");
             return false;
         case 0x0A: //l.sfgtsi SR[F] = rA > sext(I16)
-            gen_set_sr(SR_F, builder->CreateICmpSGT(gen_get_reg(rA), I16s, "l.sfgtsi"), "l.sfgtsi");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSGT(gen_get_reg(rA), I16s, "l.sfgtsi"), "l.sfgtsi");
             return false;
         case 0x0B: //l.sfgesi SR[F] = rA >= sext(I16)
-            gen_set_sr(SR_F, builder->CreateICmpSGE(gen_get_reg(rA), I16s, "l.sfgesi"), "l.sfgesi");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSGE(gen_get_reg(rA), I16s, "l.sfgesi"), "l.sfgesi");
             return false;
         case 0x0D: //l.sflesi SR[F] = rA <= sext(I16)
-            gen_set_sr(SR_F, builder->CreateICmpSLE(gen_get_reg(rA, "l.sflesi_A"), I16s, "l.sflesi_I"), "l.sflesi");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSLE(gen_get_reg(rA, "l.sflesi_A"), I16s, "l.sflesi_I"), "l.sflesi");
             return false;
         default:
             qcpu_or_disas_assert(!"Not implemented yet");
@@ -469,28 +364,28 @@ bool openrisc_vm::disas_compare(target_ulong insn){
 
     switch(op0){
         case 0x00: //l.sfeq SR[F] = rA == rB
-            gen_set_sr(SR_F, builder->CreateICmpEQ(gen_get_reg(rA, "l.sfeq"), gen_get_reg(rB, "l.sfeq"), "l.sfeq"), "l.sfeq");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpEQ(gen_get_reg(rA, "l.sfeq"), gen_get_reg(rB, "l.sfeq"), "l.sfeq"), "l.sfeq");
             return false;
         case 0x01: //l.sfne SR[F] <= rA != rB
-            gen_set_sr(SR_F, builder->CreateICmpNE(gen_get_reg(rA, "l.sfne"), gen_get_reg(rB, "l.sfne"), "l.sfne"), "l.sfne");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpNE(gen_get_reg(rA, "l.sfne"), gen_get_reg(rB, "l.sfne"), "l.sfne"), "l.sfne");
             return false;
         case 0x02: //l.sfgtu SR[F] <= rA > rB
-            gen_set_sr(SR_F, builder->CreateICmpUGT(gen_get_reg(rA, "l.sfgtu_A"), gen_get_reg(rB, "l.sfgtu_B"), "l.sfgtu"), "l.sfgtu_SRF");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpUGT(gen_get_reg(rA, "l.sfgtu_A"), gen_get_reg(rB, "l.sfgtu_B"), "l.sfgtu"), "l.sfgtu_SRF");
             return false;
         case 0x03: //l.sfgeu SR[F] <= rA >= rB
-            gen_set_sr(SR_F, builder->CreateICmpUGE(gen_get_reg(rA, "l.sfgeu_A"), gen_get_reg(rB, "l.sfgeu_B"), "l.sfgeu"), "l.sfgeu_SRF");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpUGE(gen_get_reg(rA, "l.sfgeu_A"), gen_get_reg(rB, "l.sfgeu_B"), "l.sfgeu"), "l.sfgeu_SRF");
             return false;
         case 0x05: //l.sfleu SR[F] <= rA <= rB
-            gen_set_sr(SR_F, builder->CreateICmpULE(gen_get_reg(rA, "l.sfleu_A"), gen_get_reg(rB, "l.sfleu_B"), "l.sfleu"), "l.sfleu_SRF");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpULE(gen_get_reg(rA, "l.sfleu_A"), gen_get_reg(rB, "l.sfleu_B"), "l.sfleu"), "l.sfleu_SRF");
             return false;
         case 0x0B: //l.sfges SR[F] <= rA >= rB
-            gen_set_sr(SR_F, builder->CreateICmpSGE(gen_get_reg(rA), gen_get_reg(rB)));
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSGE(gen_get_reg(rA), gen_get_reg(rB)));
             return false;
         case 0x0C: //l.sflts SR[F] <= rA < rB
-            gen_set_sr(SR_F, builder->CreateICmpSLT(gen_get_reg(rA, "l.sflts_A"), gen_get_reg(rB, "l.sflts_B"), "l.sflts"), "l.sflts_SRF");
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSLT(gen_get_reg(rA, "l.sflts_A"), gen_get_reg(rB, "l.sflts_B"), "l.sflts"), "l.sflts_SRF");
             return false;
         case 0x0D: //l.sfles SR[F} <= rA <= rB
-            gen_set_sr(SR_F, builder->CreateICmpSLE(gen_get_reg(rA), gen_get_reg(rB)));
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSLE(gen_get_reg(rA), gen_get_reg(rB)));
             return false;
         default:
             qcpu_or_disas_assert(!"Not implemented yet");
@@ -521,7 +416,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
                 static const char *const mn = "l.j";
                 ConstantInt *const pc = gen_get_pc();
                 Value *const pc_offset = builder->CreateShl(builder->CreateSExt(n26, get_reg_type(), mn), 2, mn);
-                gen_set_reg(REG_PNEXT_PC, builder->CreateAdd(pc, pc_offset, mn), mn);
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, builder->CreateAdd(pc, pc_offset, mn), mn);
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 qcpu_or_disas_assert(!ret);
                 return true;
@@ -530,9 +425,9 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
             {
                 ConstantInt *const pc = gen_get_pc();
                 Value *const pc_offset = builder->CreateShl(builder->CreateSExt(n26, get_reg_type()), 2);
-                gen_set_reg(REG_PNEXT_PC, builder->CreateAdd(pc, pc_offset));
-                Value *const nd_bit = builder->CreateAnd(builder->CreateLShr(gen_get_reg(REG_CPUCFGR), gen_const(CPUCFGR_ND)), gen_const(1));
-                gen_set_reg(REG_LR, builder->CreateAdd(pc, gen_cond_code(nd_bit, gen_const(4), gen_const(8))));//check spr
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, builder->CreateAdd(pc, pc_offset));
+                Value *const nd_bit = builder->CreateAnd(builder->CreateLShr(gen_get_reg(openrisc_arch::REG_CPUCFGR), gen_const(openrisc_arch::CPUCFGR_ND)), gen_const(1));
+                gen_set_reg(openrisc_arch::REG_LR, builder->CreateAdd(pc, gen_cond_code(nd_bit, gen_const(4), gen_const(8))));//check spr
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 qcpu_or_disas_assert(!ret);
                 return true;
@@ -543,15 +438,15 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
                 const bool is_bnf = op0 == 0x03;
                 const char *const mn = is_bnf ? "l.bnf" : "l.bf";
                 const virt_addr_t &pc = processing_pc.top().first;
-                Value *const flag = gen_get_reg(REG_SR);
-                Value *const shifted_flag = builder->CreateAnd(builder->CreateLShr(flag, SR_F), 1, mn);
+                Value *const flag = gen_get_reg(openrisc_arch::REG_SR);
+                Value *const shifted_flag = builder->CreateAnd(builder->CreateLShr(flag, openrisc_arch::SR_F), 1, mn);
                 Value *const pc_offset = builder->CreateShl(builder->CreateSExt(lo16, get_reg_type(), mn), 2, mn);
                 Value *not_taken_pc = gen_const(pc + 8);
                 Value *taken_pc = builder->CreateAdd(gen_const(pc), pc_offset, mn);
                 if(is_bnf) std::swap(taken_pc, not_taken_pc);
                 Value *const next_pc = gen_cond_code(shifted_flag, taken_pc, not_taken_pc);
-                gen_set_reg(REG_PNEXT_PC, next_pc);
-                gen_set_reg(REG_SR, builder->CreateAnd(flag, ~(static_cast<target_ulong>(1) << SR_F), mn));
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, next_pc);
+                gen_set_reg(openrisc_arch::REG_SR, builder->CreateAnd(flag, ~(static_cast<target_ulong>(1) << openrisc_arch::SR_F), mn));
                 const bool ret = disas_insn(pc + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 qcpu_or_disas_assert(!ret);
             }
@@ -577,7 +472,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
         case 0x11: //l.jr PC = rB
             {
                 static const char *const mn = "l.jr";
-                gen_set_reg(REG_PNEXT_PC, gen_get_reg(rB, mn), mn);
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(rB, mn), mn);
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 qcpu_or_disas_assert(!ret);
                 return true;
@@ -670,14 +565,14 @@ void openrisc_vm::start_func(phys_addr_t pc_p){
     builder->SetInsertPoint(bb);
     cur_func = func_main;
     cur_bb = bb;
-    gen_set_reg(REG_PC, gen_get_reg(REG_PNEXT_PC, "prologue"), "prologue");
+    gen_set_reg(openrisc_arch::REG_PC, gen_get_reg(openrisc_arch::REG_PNEXT_PC, "prologue"), "prologue");
 #if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
-    gen_set_reg(REG_PNEXT_PC, gen_const(0xFFFFFFFF), "prologue"); //poison value
+    gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_const(0xFFFFFFFF), "prologue"); //poison value
 #endif
 }
 
 llvm::Function * openrisc_vm::end_func(){
-    llvm::Value *const pc = gen_get_reg(REG_PNEXT_PC, "epilogue");
+    llvm::Value *const pc = gen_get_reg(openrisc_arch::REG_PNEXT_PC, "epilogue");
 #if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
     builder->CreateCall(mod->getFunction("qcpu_vm_dump_regs"));
 #endif
@@ -690,7 +585,7 @@ llvm::Function * openrisc_vm::end_func(){
 }
 
 gdb::gdb_target_if::run_state_e openrisc_vm::run(){
-    virt_addr_t pc(get_reg_func(REG_PC));
+    virt_addr_t pc(get_reg_func(openrisc_arch::REG_PC));
     for(;;){
         const break_point *const nearest = bp_man.find_nearest(pc);
         const phys_addr_t pc_p = code_v2p(pc);
@@ -709,7 +604,7 @@ gdb::gdb_target_if::run_state_e openrisc_vm::run(){
 }
 
 gdb::gdb_target_if::run_state_e openrisc_vm::step_exec(){
-    virt_addr_t pc(get_reg_func(REG_PC));
+    virt_addr_t pc(get_reg_func(openrisc_arch::REG_PC));
     const break_point *const nearest = bp_man.find_nearest(pc);
     const phys_addr_t pc_p = code_v2p(pc);
     bb_man.invalidate(pc_p, pc_p + phys_addr_t(4));
@@ -722,28 +617,21 @@ gdb::gdb_target_if::run_state_e openrisc_vm::step_exec(){
     return (nearest && nearest->get_pc() == pc) ? RUN_STAT_BREAK : RUN_STAT_NORMAL;
 }
 
-void openrisc_vm::dump_ir()const{
-    llvm::PassManager pm;
-    pm.add(createPrintModulePass(&llvm::outs()));
-    pm.run(*mod);
-}
-
-
 void openrisc_vm::dump_regs()const{
-    for(unsigned int i = 0; i < NUM_REGS; ++i){
+    for(unsigned int i = 0; i < openrisc_arch::NUM_REGS; ++i){
         if(i < 32){
             std::cout << "reg[" << std::dec << std::setw(2) << std::setfill('0') << i << "]:";
         }
-        else if(i == REG_PC){
+        else if(i == openrisc_arch::REG_PC){
             std::cout << "pc:";
         }
-        else if(i == REG_SR){
+        else if(i == openrisc_arch::REG_SR){
             std::cout << "sr:";
         }
-        else if(i == REG_PNEXT_PC){
+        else if(i == openrisc_arch::REG_PNEXT_PC){
             std::cout << "jump_to:";
         }
-        else if(i == REG_CPUCFGR){
+        else if(i == openrisc_arch::REG_CPUCFGR){
             std::cout << "cpucfgr";
         }
         else{assert(!"Unknown register");}
@@ -752,10 +640,6 @@ void openrisc_vm::dump_regs()const{
         else std::cout << '\n';
     }
     std::cout << std::endl;
-}
-
-uint64_t openrisc_vm::get_total_insn_count()const{
-    return total_icount;
 }
 
 openrisc::openrisc(const char *model) : qcpu(), vm(QCPU_NULLPTR){
