@@ -1,6 +1,6 @@
 V					?= 0
 DEBUG				?= 1
-SRC_DIRS			:= . ../../src ../../src/target-openrisc
+SRC_DIRS			:= . ../../src $(wildcard ../../src/target-*)
 EXECOPT 			:= 
 INCLUDE_DIRS		:=  ../../include
 USE_GCC				:= 1
