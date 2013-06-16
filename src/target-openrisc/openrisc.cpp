@@ -51,6 +51,13 @@ void make_debug_func(llvm::Module *);
 namespace qcpu{
 namespace openrisc{
 
+struct openrisc_arch{
+    typedef uint32_t target_ulong;
+    const static unsigned int reg_bit_width = 32;
+    typedef vm::primitive_type_holder<target_ulong, openrisc_arch, 0> virt_addr_t;
+    typedef vm::primitive_type_holder<target_ulong, openrisc_arch, 1> phys_addr_t;
+};
+
 enum reg_e{
     REG_GR00, REG_GR01, REG_GR02, REG_GR03,
     REG_GR04, REG_GR05, REG_GR06, REG_GR07,
@@ -70,103 +77,15 @@ enum sr_flag_e{
 enum cpucfgr_bit_e{
     CPUCFGR_ND = 10
 };
-typedef uint32_t target_ulong;
-const static unsigned int reg_bit_width = 32;
 
+typedef openrisc_arch::virt_addr_t virt_addr_t;
+typedef openrisc_arch::phys_addr_t phys_addr_t;
+typedef openrisc_arch::target_ulong target_ulong;
 
-template<typename T, int TAG>
-class primitive_type_holder{
-    T v;
-    typedef primitive_type_holder<T, TAG> this_type;
-    public:
-    explicit primitive_type_holder(T v) : v(v){}
-    operator const T ()const{return v;}
-    const this_type operator + (const this_type &other)const{
-        return this_type(v + other.v);
-    }
-};
-
-typedef primitive_type_holder<target_ulong, 0> virt_addr_t;
-typedef primitive_type_holder<target_ulong, 1> phys_addr_t;
-
-
-class basic_block{
-    typedef target_ulong (*basic_block_func_t)();
-
-    const phys_addr_t start_phys_addr, end_phys_addr;
-    const llvm::Function *const func;
-    basic_block_func_t const func_ptr;
-    const unsigned int num_insn;
-    basic_block();
-    public:
-    basic_block(phys_addr_t sp, phys_addr_t ep, llvm::Function *f, llvm::ExecutionEngine *ee, unsigned int insn) :
-        start_phys_addr(sp), end_phys_addr(ep), func(f),
-        func_ptr(reinterpret_cast<basic_block_func_t>(ee->getPointerToFunction(f))),
-        num_insn(insn)
-    {}
-    virt_addr_t exec()const{return static_cast<virt_addr_t>((*func_ptr)());}
-    unsigned int get_icount()const{return num_insn;}
-    phys_addr_t get_start_addr()const{return start_phys_addr;}
-    phys_addr_t get_end_addr()const{return end_phys_addr;}
-};
-
-class bb_manager{
-    std::map<phys_addr_t, basic_block *> bb_by_start;
-    std::multimap<phys_addr_t, basic_block *> bb_by_end;
-    public:
-    void add(basic_block *bb){
-        std::map<phys_addr_t, basic_block *>::const_iterator i = bb_by_start.find(bb->get_start_addr());
-        if(i != bb_by_start.end()){abort();}
-        bb_by_start[bb->get_start_addr()] = bb;
-        bb_by_end.insert(std::make_pair(bb->get_end_addr(), bb));
-    }
-    bool exists_by_start_addr(phys_addr_t p)const{
-        std::map<phys_addr_t, basic_block *>::const_iterator i = bb_by_start.find(p);
-        return i != bb_by_start.end();
-    }
-    const basic_block * find_by_start_addr(phys_addr_t p)const{
-        std::map<phys_addr_t, basic_block *>::const_iterator i = bb_by_start.find(p);
-        return i->second;
-    }
-    int exists_by_end_addr(phys_addr_t p)const{
-        return bb_by_end.count(p);
-    }
-    void invalidate(phys_addr_t from, phys_addr_t to){
-        //FIXME invalide bb only in range
-        bb_by_start.clear();
-        bb_by_end.clear();
-    }
-};
-
-class break_point{
-    virt_addr_t pc;
-    public:
-    explicit break_point(virt_addr_t pc) : pc(pc){}
-    virt_addr_t get_pc()const{return pc;}
-};
-
-class bp_manager{
-    std::map<virt_addr_t, break_point *> bps_by_addr;
-    public:
-    void add(virt_addr_t pc){
-        break_point *const bp = new break_point(pc);
-        bps_by_addr.insert(std::make_pair(pc, bp));
-    }
-    bool exists(virt_addr_t pc)const{
-        return bps_by_addr.find(pc) != bps_by_addr.end();
-    }
-    void remove(virt_addr_t pc){
-        std::map<virt_addr_t, break_point *>::iterator it = bps_by_addr.find(pc);
-        qcpu_assert(it != bps_by_addr.end());
-        delete it->second;
-        bps_by_addr.erase(it);
-    }
-    const break_point *find_nearest(virt_addr_t pc)const{
-        const std::map<virt_addr_t, break_point *>::const_iterator it = bps_by_addr.lower_bound(pc);
-        return it == bps_by_addr.end() ? QCPU_NULLPTR : it->second;
-    }
-};
-
+typedef vm::basic_block<openrisc_arch> basic_block;
+typedef vm::bb_manager<openrisc_arch> bb_manager;
+typedef vm::break_point<openrisc_arch> break_point;
+typedef vm::bp_manager<openrisc_arch> bp_manager;
 
 class openrisc_vm : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_target_if{
     qcpu_ext_if &ext_ifs;
@@ -195,7 +114,7 @@ class openrisc_vm : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_targe
         return gen_set_reg(reg_index(r), val, mn);
     }
     llvm::ConstantInt * gen_const(target_ulong val)const{
-        return llvm::ConstantInt::get(*context, llvm::APInt(reg_bit_width, val));
+        return llvm::ConstantInt::get(*context, llvm::APInt(openrisc_arch::reg_bit_width, val));
     }
     llvm::ConstantInt * gen_get_pc()const{
         return gen_const(processing_pc.top().first);
