@@ -15,11 +15,11 @@
 #include "gdbserver.h"
 #include "jcpu_arm.h"
 
-//#define JCPU_OPENRISC_DEBUG 3
+#define JCPU_ARM_DEBUG 3
 
 
 namespace {
-#define jcpu_or_disas_assert(cond) do{if(!(cond)){ \
+#define jcpu_arm_disas_assert(cond) do{if(!(cond)){ \
     /*dump_ir();*/ \
     dump_regs(); \
     llvm::Function *const f = end_func(); \
@@ -109,7 +109,7 @@ arm_vm::arm_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<arm_arch>(ifs)
     Initializer.reserve(num_regs);
 
     for(unsigned int i = 0; i < num_regs; ++i){
-        const unsigned int reg_init_val = (i == arm_arch::REG_PC || i == arm_arch::REG_PNEXT_PC) ? 0x100 : 0;
+        const unsigned int reg_init_val = (i == arm_arch::REG_PC || i == arm_arch::REG_PNEXT_PC) ? 0x0000 : 0;
         llvm::ConstantInt *const ivc = gen_const(reg_init_val);
         Initializer.push_back(ivc);
     }
@@ -159,21 +159,21 @@ bool arm_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
         ~push_and_pop_pc(){
 
             vm.gen_set_reg(arm_arch::REG_PC, vm.gen_const(vm.processing_pc.top().first + 4));
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
+#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
             //vm.gen_set_reg(arm_arch::REG_PC, vm.gen_const(vm.processing_pc.top().second));
 #endif
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 2
-    builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
+#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 2
+            vm.builder->CreateCall(vm.mod->getFunction("jcpu_vm_dump_regs"));
 #endif
             vm.processing_pc.pop();
         }
     } push_and_pop_pc(*this, pc_v, pc);
     const target_ulong insn = ext_ifs.mem_read(pc, sizeof(target_ulong));
     const unsigned int kind = bit_sub<26, 6>(insn);
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 0
+#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 0
     std::cout << std::hex << "pc:" << pc << " INSN:" << std::setw(8) << std::setfill('0') << insn << " kind:" << kind << std::endl;
 #endif
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 2
+#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 2
     builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
 #endif
     switch(kind){
@@ -217,6 +217,9 @@ const basic_block *arm_vm::disas(virt_addr_t start_pc_, int max_insn, const brea
     llvm::Function *const f = end_func();
     basic_block *const bb = new basic_block(start_pc, phys_addr_t(pc - 4), f, ee, num_insn);
     bb_man.add(bb);
+#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
+    dump_ir();
+#endif
     return bb;
 }
 
@@ -241,14 +244,14 @@ void arm_vm::start_func(phys_addr_t pc_p){
     cur_func = func_main;
     cur_bb = bb;
     gen_set_reg(arm_arch::REG_PC, gen_get_reg(arm_arch::REG_PNEXT_PC, "prologue"), "prologue");
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
+#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
     gen_set_reg(arm_arch::REG_PNEXT_PC, gen_const(0xFFFFFFFF), "prologue"); //poison value
 #endif
 }
 
 llvm::Function * arm_vm::end_func(){
     llvm::Value *const pc = gen_get_reg(arm_arch::REG_PNEXT_PC, "epilogue");
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
+#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
     builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
 #endif
     builder->CreateRet(pc);
@@ -269,7 +272,7 @@ gdb::gdb_target_if::run_state_e arm_vm::run(){
             return RUN_STAT_BREAK;
         }
         pc = bb->exec();
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
+#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
         dump_regs();
 #endif
         total_icount += bb->get_icount();
@@ -285,7 +288,7 @@ gdb::gdb_target_if::run_state_e arm_vm::step_exec(){
     bb_man.invalidate(pc_p, pc_p + phys_addr_t(4));
     const basic_block *const bb = bb_man.exists_by_start_addr(pc_p) ? bb_man.find_by_start_addr(pc_p) : disas(pc, 1, nearest);
     pc = bb->exec();
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
+#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
     dump_regs();
 #endif
     total_icount += bb->get_icount();
