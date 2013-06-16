@@ -143,11 +143,11 @@ void make_mem_access(llvm::Module *mod) {
     using namespace llvm;
     // Module Construction
     // Type Definitions
-    StructType *StructTy_class_qcpu__qcpu_ext_if = mod->getTypeByName("class.qcpu::qcpu_ext_if");
-    if (!StructTy_class_qcpu__qcpu_ext_if) {
-        StructTy_class_qcpu__qcpu_ext_if = StructType::create(mod->getContext(), "class.qcpu::qcpu_ext_if");
+    StructType *StructTy_class_jcpu__jcpu_ext_if = mod->getTypeByName("class.jcpu::jcpu_ext_if");
+    if (!StructTy_class_jcpu__jcpu_ext_if) {
+        StructTy_class_jcpu__jcpu_ext_if = StructType::create(mod->getContext(), "class.jcpu::jcpu_ext_if");
     }
-    std::vector<Type*>StructTy_class_qcpu__qcpu_ext_if_fields;
+    std::vector<Type*>StructTy_class_jcpu__jcpu_ext_if_fields;
     std::vector<Type*>FuncTy_3_args;
     FunctionType* FuncTy_3 = FunctionType::get(
             /*Result=*/IntegerType::get(mod->getContext(), 32),
@@ -158,12 +158,12 @@ void make_mem_access(llvm::Module *mod) {
 
     PointerType* PointerTy_1 = PointerType::get(PointerTy_2, 0);
 
-    StructTy_class_qcpu__qcpu_ext_if_fields.push_back(PointerTy_1);
-    if (StructTy_class_qcpu__qcpu_ext_if->isOpaque()) {
-        StructTy_class_qcpu__qcpu_ext_if->setBody(StructTy_class_qcpu__qcpu_ext_if_fields, /*isPacked=*/false);
+    StructTy_class_jcpu__jcpu_ext_if_fields.push_back(PointerTy_1);
+    if (StructTy_class_jcpu__jcpu_ext_if->isOpaque()) {
+        StructTy_class_jcpu__jcpu_ext_if->setBody(StructTy_class_jcpu__jcpu_ext_if_fields, /*isPacked=*/false);
     }
 
-    PointerType* PointerTy_0 = PointerType::get(StructTy_class_qcpu__qcpu_ext_if, 0);
+    PointerType* PointerTy_0 = PointerType::get(StructTy_class_jcpu__jcpu_ext_if, 0);
 
     std::vector<Type*>FuncTy_5_args;
     FuncTy_5_args.push_back(PointerTy_0);
@@ -524,11 +524,11 @@ void make_debug_func(llvm::Module *mod) {
     using namespace llvm;
 
     // Type Definitions
-    StructType *StructTy_class_qcpu__vm__qcpu_vm_if = mod->getTypeByName("class.qcpu::vm::qcpu_vm_if");
-    if (!StructTy_class_qcpu__vm__qcpu_vm_if) {
-        StructTy_class_qcpu__vm__qcpu_vm_if = StructType::create(mod->getContext(), "class.qcpu::vm::qcpu_vm_if");
+    StructType *StructTy_class_jcpu__vm__jcpu_vm_if = mod->getTypeByName("class.jcpu::vm::jcpu_vm_if");
+    if (!StructTy_class_jcpu__vm__jcpu_vm_if) {
+        StructTy_class_jcpu__vm__jcpu_vm_if = StructType::create(mod->getContext(), "class.jcpu::vm::jcpu_vm_if");
     }
-    std::vector<Type*>StructTy_class_qcpu__vm__qcpu_vm_if_fields;
+    std::vector<Type*>StructTy_class_jcpu__vm__jcpu_vm_if_fields;
     std::vector<Type*>FuncTy_3_args;
     FunctionType* FuncTy_3 = FunctionType::get(
             /*Result=*/IntegerType::get(mod->getContext(), 32),
@@ -539,12 +539,12 @@ void make_debug_func(llvm::Module *mod) {
 
     PointerType* PointerTy_1 = PointerType::get(PointerTy_2, 0);
 
-    StructTy_class_qcpu__vm__qcpu_vm_if_fields.push_back(PointerTy_1);
-    if (StructTy_class_qcpu__vm__qcpu_vm_if->isOpaque()) {
-        StructTy_class_qcpu__vm__qcpu_vm_if->setBody(StructTy_class_qcpu__vm__qcpu_vm_if_fields, /*isPacked=*/false);
+    StructTy_class_jcpu__vm__jcpu_vm_if_fields.push_back(PointerTy_1);
+    if (StructTy_class_jcpu__vm__jcpu_vm_if->isOpaque()) {
+        StructTy_class_jcpu__vm__jcpu_vm_if->setBody(StructTy_class_jcpu__vm__jcpu_vm_if_fields, /*isPacked=*/false);
     }
 
-    PointerType* PointerTy_0 = PointerType::get(StructTy_class_qcpu__vm__qcpu_vm_if, 0);
+    PointerType* PointerTy_0 = PointerType::get(StructTy_class_jcpu__vm__jcpu_vm_if, 0);
 
     std::vector<Type*>FuncTy_5_args;
     FuncTy_5_args.push_back(PointerTy_0);
@@ -568,15 +568,15 @@ void make_debug_func(llvm::Module *mod) {
 
     // Function Declarations
 
-    Function* func_set_qcpu_vm_ptr = mod->getFunction("set_qcpu_vm_ptr");
-    if (!func_set_qcpu_vm_ptr) {
-        func_set_qcpu_vm_ptr = Function::Create(
+    Function* func_set_jcpu_vm_ptr = mod->getFunction("set_jcpu_vm_ptr");
+    if (!func_set_jcpu_vm_ptr) {
+        func_set_jcpu_vm_ptr = Function::Create(
                 /*Type=*/FuncTy_5,
                 /*Linkage=*/GlobalValue::ExternalLinkage,
-                /*Name=*/"set_qcpu_vm_ptr", mod); 
-        func_set_qcpu_vm_ptr->setCallingConv(CallingConv::C);
+                /*Name=*/"set_jcpu_vm_ptr", mod); 
+        func_set_jcpu_vm_ptr->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_set_qcpu_vm_ptr_PAL;
+    AttrListPtr func_set_jcpu_vm_ptr_PAL;
     {
         SmallVector<AttributeWithIndex, 4> Attrs;
         AttributeWithIndex PAWI;
@@ -588,20 +588,20 @@ void make_debug_func(llvm::Module *mod) {
             PAWI.Attrs = Attributes::get(mod->getContext(), B);
         }
         Attrs.push_back(PAWI);
-        func_set_qcpu_vm_ptr_PAL = AttrListPtr::get(mod->getContext(), Attrs);
+        func_set_jcpu_vm_ptr_PAL = AttrListPtr::get(mod->getContext(), Attrs);
 
     }
-    func_set_qcpu_vm_ptr->setAttributes(func_set_qcpu_vm_ptr_PAL);
+    func_set_jcpu_vm_ptr->setAttributes(func_set_jcpu_vm_ptr_PAL);
 
-    Function* func_qcpu_vm_dump_regs = mod->getFunction("qcpu_vm_dump_regs");
-    if (!func_qcpu_vm_dump_regs) {
-        func_qcpu_vm_dump_regs = Function::Create(
+    Function* func_jcpu_vm_dump_regs = mod->getFunction("jcpu_vm_dump_regs");
+    if (!func_jcpu_vm_dump_regs) {
+        func_jcpu_vm_dump_regs = Function::Create(
                 /*Type=*/FuncTy_6,
                 /*Linkage=*/GlobalValue::ExternalLinkage,
-                /*Name=*/"qcpu_vm_dump_regs", mod); 
-        func_qcpu_vm_dump_regs->setCallingConv(CallingConv::C);
+                /*Name=*/"jcpu_vm_dump_regs", mod); 
+        func_jcpu_vm_dump_regs->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_qcpu_vm_dump_regs_PAL;
+    AttrListPtr func_jcpu_vm_dump_regs_PAL;
     {
         SmallVector<AttributeWithIndex, 4> Attrs;
         AttributeWithIndex PAWI;
@@ -612,52 +612,52 @@ void make_debug_func(llvm::Module *mod) {
             PAWI.Attrs = Attributes::get(mod->getContext(), B);
         }
         Attrs.push_back(PAWI);
-        func_qcpu_vm_dump_regs_PAL = AttrListPtr::get(mod->getContext(), Attrs);
+        func_jcpu_vm_dump_regs_PAL = AttrListPtr::get(mod->getContext(), Attrs);
 
     }
-    func_qcpu_vm_dump_regs->setAttributes(func_qcpu_vm_dump_regs_PAL);
+    func_jcpu_vm_dump_regs->setAttributes(func_jcpu_vm_dump_regs_PAL);
 
     // Global Variable Declarations
 
 
-    GlobalVariable* gvar_ptr_qcpu_vm_ptr = new GlobalVariable(/*Module=*/*mod, 
+    GlobalVariable* gvar_ptr_jcpu_vm_ptr = new GlobalVariable(/*Module=*/*mod, 
             /*Type=*/PointerTy_0,
             /*isConstant=*/false,
             /*Linkage=*/GlobalValue::ExternalLinkage,
             /*Initializer=*/0, // has initializer, specified below
-            /*Name=*/"qcpu_vm_ptr");
-    gvar_ptr_qcpu_vm_ptr->setAlignment(8);
+            /*Name=*/"jcpu_vm_ptr");
+    gvar_ptr_jcpu_vm_ptr->setAlignment(8);
 
     // Constant Definitions
     ConstantPointerNull* const_ptr_10 = ConstantPointerNull::get(PointerTy_0);
 
     // Global Variable Definitions
-    gvar_ptr_qcpu_vm_ptr->setInitializer(const_ptr_10);
+    gvar_ptr_jcpu_vm_ptr->setInitializer(const_ptr_10);
 
     // Function Definitions
 
-    // Function: set_qcpu_vm_ptr (func_set_qcpu_vm_ptr)
+    // Function: set_jcpu_vm_ptr (func_set_jcpu_vm_ptr)
     {
-        Function::arg_iterator args = func_set_qcpu_vm_ptr->arg_begin();
+        Function::arg_iterator args = func_set_jcpu_vm_ptr->arg_begin();
         Value* ptr_ptr = args++;
         ptr_ptr->setName("ptr");
 
-        BasicBlock* label_11 = BasicBlock::Create(mod->getContext(), "",func_set_qcpu_vm_ptr,0);
+        BasicBlock* label_11 = BasicBlock::Create(mod->getContext(), "",func_set_jcpu_vm_ptr,0);
 
         // Block  (label_11)
-        StoreInst* void_12 = new StoreInst(ptr_ptr, gvar_ptr_qcpu_vm_ptr, false, label_11);
+        StoreInst* void_12 = new StoreInst(ptr_ptr, gvar_ptr_jcpu_vm_ptr, false, label_11);
         void_12->setAlignment(8);
         ReturnInst::Create(mod->getContext(), label_11);
 
     }
 
-    // Function: qcpu_vm_dump_regs (func_qcpu_vm_dump_regs)
+    // Function: jcpu_vm_dump_regs (func_jcpu_vm_dump_regs)
     {
 
-        BasicBlock* label_14 = BasicBlock::Create(mod->getContext(), "",func_qcpu_vm_dump_regs,0);
+        BasicBlock* label_14 = BasicBlock::Create(mod->getContext(), "",func_jcpu_vm_dump_regs,0);
 
         // Block  (label_14)
-        LoadInst* ptr_15 = new LoadInst(gvar_ptr_qcpu_vm_ptr, "", false, label_14);
+        LoadInst* ptr_15 = new LoadInst(gvar_ptr_jcpu_vm_ptr, "", false, label_14);
         ptr_15->setAlignment(8);
         CastInst* ptr_16 = new BitCastInst(ptr_15, PointerTy_7, "", label_14);
         LoadInst* ptr_17 = new LoadInst(ptr_16, "", false, label_14);

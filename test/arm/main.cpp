@@ -5,15 +5,15 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/PrettyStackTrace.h>
 #include <llvm/Support/Signals.h>// llvm::sys::PrintStackTraceOnErrorSignal()
-#include "qcpu.h"
+#include "jcpu.h"
 
 
-class dummy_mem : public qcpu::qcpu_ext_if{
-    const qcpu::qcpu &qcpu_if;
+class dummy_mem : public jcpu::jcpu_ext_if{
+    const jcpu::jcpu &jcpu_if;
     std::vector<uint32_t> tmp_mem;
     bool prefix_need_to_show;
     public:
-    dummy_mem(const char *fn, qcpu::qcpu &ifs) : qcpu_if(ifs){
+    dummy_mem(const char *fn, jcpu::jcpu &ifs) : jcpu_if(ifs){
         prefix_need_to_show = true;
         tmp_mem.resize(0x10000 / sizeof(tmp_mem[0]));
 #if 0
@@ -89,7 +89,7 @@ class dummy_mem : public qcpu::qcpu_ext_if{
         else if(addr == 0x60000008){
             //assert(be == 0xF);
             //throw finish_ex();
-            std::cerr << "Simulation done after " << std::dec << qcpu_if.get_total_insn_count() << " instruction" << std::endl;
+            std::cerr << "Simulation done after " << std::dec << jcpu_if.get_total_insn_count() << " instruction" << std::endl;
             exit(0);
         }
         else{
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]){
     llvm::EnableDebugBuffering = true;
 
 
-    qcpu::qcpu *const cpu = qcpu::qcpu::create("arm", "arm926");
+    jcpu::jcpu *const cpu = jcpu::jcpu::create("arm", "arm926");
     dummy_mem mem(argv[1], *cpu);
     cpu->set_ext_interface(&mem);
     cpu->reset(true);

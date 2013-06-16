@@ -11,15 +11,15 @@
 #include <llvm/Analysis/Verifier.h> //verifyModule
 #include <llvm/Instructions.h> //LoadInst
 
-#include "qcpu_vm.h"
+#include "jcpu_vm.h"
 #include "gdbserver.h"
 #include "jcpu_arm.h"
 
-//#define QCPU_OPENRISC_DEBUG 3
+//#define JCPU_OPENRISC_DEBUG 3
 
 
 namespace {
-#define qcpu_or_disas_assert(cond) do{if(!(cond)){ \
+#define jcpu_or_disas_assert(cond) do{if(!(cond)){ \
     /*dump_ir();*/ \
     dump_regs(); \
     llvm::Function *const f = end_func(); \
@@ -42,7 +42,7 @@ void make_debug_func(llvm::Module *);
 
 } //end of unnamed namespace
 
-namespace qcpu{
+namespace jcpu{
 namespace arm{
 
 struct arm_arch{
@@ -82,12 +82,12 @@ typedef vm::bb_manager<arm_arch> bb_manager;
 typedef vm::break_point<arm_arch> break_point;
 typedef vm::bp_manager<arm_arch> bp_manager;
 
-class arm_vm : public vm::qcpu_vm_base<arm_arch>{
+class arm_vm : public vm::jcpu_vm_base<arm_arch>{
     //gdb_target_if
-    virtual void get_reg_value(std::vector<uint64_t> &)const QCPU_OVERRIDE;
-    virtual void set_reg_value(unsigned int, uint64_t)QCPU_OVERRIDE;
+    virtual void get_reg_value(std::vector<uint64_t> &)const JCPU_OVERRIDE;
+    virtual void set_reg_value(unsigned int, uint64_t)JCPU_OVERRIDE;
 
-    virtual bool disas_insn(virt_addr_t, int *)QCPU_OVERRIDE;
+    virtual bool disas_insn(virt_addr_t, int *)JCPU_OVERRIDE;
     bool disas_arith(target_ulong);
     bool disas_logical(target_ulong);
     bool disas_compare_immediate(target_ulong);
@@ -104,15 +104,15 @@ class arm_vm : public vm::qcpu_vm_base<arm_arch>{
         return gen_set_reg(arm_arch::REG_SR, new_sr, mn);
     }
     const basic_block *disas(virt_addr_t, int, const break_point *);
-    virtual run_state_e step_exec() QCPU_OVERRIDE;
+    virtual run_state_e step_exec() JCPU_OVERRIDE;
     phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);} //FIXME implement MMU
     public:
-    explicit arm_vm(qcpu_ext_if &);
-    virtual run_state_e run() QCPU_OVERRIDE;
-    virtual void dump_regs()const QCPU_OVERRIDE;
+    explicit arm_vm(jcpu_ext_if &);
+    virtual run_state_e run() JCPU_OVERRIDE;
+    virtual void dump_regs()const JCPU_OVERRIDE;
 };
 
-arm_vm::arm_vm(qcpu_ext_if &ifs) : vm::qcpu_vm_base<arm_arch>(ifs) 
+arm_vm::arm_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<arm_arch>(ifs) 
 {
 
     const unsigned int bit = sizeof(target_ulong) * 8;
@@ -138,10 +138,10 @@ arm_vm::arm_vm(qcpu_ext_if &ifs) : vm::qcpu_vm_base<arm_arch>(ifs)
     set_reg_func = reinterpret_cast<void (*)(uint16_t, target_ulong)>(ee->getPointerToFunction(mod->getFunction("set_reg")));
     get_reg_func = reinterpret_cast<target_ulong (*)(uint16_t)>(ee->getPointerToFunction(mod->getFunction("get_reg")));
 
-    void (*const set_mem_access_if)(qcpu_ext_if *) = reinterpret_cast<void(*)(qcpu_ext_if*)>(ee->getPointerToFunction(mod->getFunction("set_mem_access_if")));
+    void (*const set_mem_access_if)(jcpu_ext_if *) = reinterpret_cast<void(*)(jcpu_ext_if*)>(ee->getPointerToFunction(mod->getFunction("set_mem_access_if")));
     set_mem_access_if(&ext_ifs);
-    void (*const set_qcpu_vm_ptr)(qcpu_vm_if *) = reinterpret_cast<void(*)(qcpu_vm_if*)>(ee->getPointerToFunction(mod->getFunction("set_qcpu_vm_ptr")));
-    set_qcpu_vm_ptr(this);
+    void (*const set_jcpu_vm_ptr)(jcpu_vm_if *) = reinterpret_cast<void(*)(jcpu_vm_if*)>(ee->getPointerToFunction(mod->getFunction("set_jcpu_vm_ptr")));
+    set_jcpu_vm_ptr(this);
 
 
 }
@@ -156,7 +156,7 @@ void arm_vm::get_reg_value(std::vector<uint64_t> &regs)const{
     regs.push_back(get_reg_func(arm_arch::REG_PNEXT_PC));
 }
 void arm_vm::set_reg_value(unsigned int reg_idx, uint64_t reg_val){
-    qcpu_assert(reg_idx < 32 + 1);
+    jcpu_assert(reg_idx < 32 + 1);
     set_reg_func(reg_idx, reg_val);
 }
 
@@ -171,7 +171,7 @@ bool arm_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
         ~push_and_pop_pc(){
 
             vm.gen_set_reg(arm_arch::REG_PC, vm.gen_const(vm.processing_pc.top().first + 4));
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
             //vm.gen_set_reg(arm_arch::REG_PC, vm.gen_const(vm.processing_pc.top().second));
 #endif
             vm.processing_pc.pop();
@@ -179,25 +179,25 @@ bool arm_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
     } push_and_pop_pc(*this, pc_v, pc);
     const target_ulong insn = ext_ifs.mem_read(pc, sizeof(target_ulong));
     const unsigned int kind = bit_sub<26, 6>(insn);
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 0
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 0
     std::cout << std::hex << "pc:" << pc << " INSN:" << std::setw(8) << std::setfill('0') << insn << " kind:" << kind << std::endl;
 #endif
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 2
-    builder->CreateCall(mod->getFunction("qcpu_vm_dump_regs"));
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 2
+    builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
 #endif
     switch(kind){
         case 0x08: //system
-            qcpu_or_disas_assert(!"Not implemented yet");
+            jcpu_or_disas_assert(!"Not implemented yet");
             break;
         case 0x2E: //logical
             return disas_logical(insn);
         case 0x2F: //compare
             return disas_compare_immediate(insn);
         case 0x31: //media
-            qcpu_or_disas_assert(!"Not implemented yet");
+            jcpu_or_disas_assert(!"Not implemented yet");
             break;
         case 0x32: //floating point
-            qcpu_or_disas_assert(!"Not implemented yet");
+            jcpu_or_disas_assert(!"Not implemented yet");
             break;
         case 0x38: //arithmetric
             return disas_arith(insn);
@@ -207,8 +207,8 @@ bool arm_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
         default: //others
             return disas_others(insn, insn_depth);
     }
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 2
-    builder->CreateCall(mod->getFunction("qcpu_vm_dump_regs"));
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 2
+    builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
 #endif
 
 }
@@ -231,7 +231,7 @@ const basic_block *arm_vm::disas(virt_addr_t start_pc_, int max_insn, const brea
         }
     }
     else{
-        qcpu_assert(max_insn ==  1); //only step exec is supported
+        jcpu_assert(max_insn ==  1); //only step exec is supported
         int insn_depth = 0;
         const bool done = disas_insn(start_pc_, &insn_depth);
         num_insn += insn_depth;
@@ -277,7 +277,7 @@ bool arm_vm::disas_arith(target_ulong insn){
                 }
                 return false;
             default:
-                qcpu_or_disas_assert(!"Not implemented yet");
+                jcpu_or_disas_assert(!"Not implemented yet");
                 break;
         }
     }
@@ -289,11 +289,11 @@ bool arm_vm::disas_arith(target_ulong insn){
                 return false;
 
             default:
-                qcpu_or_disas_assert(!"Not implemented yet");
+                jcpu_or_disas_assert(!"Not implemented yet");
                 break;
         }
     }
-    qcpu_or_disas_assert(!"Never comes here");
+    jcpu_or_disas_assert(!"Never comes here");
 }
 
 bool arm_vm::disas_logical(target_ulong insn){
@@ -314,10 +314,10 @@ bool arm_vm::disas_logical(target_ulong insn){
             gen_set_reg(rD, builder->CreateAShr(gen_get_reg(rA, "l.srai"), L_32, "l.srai"), "l.srai");
             return false;
         default:
-            qcpu_or_disas_assert(!"Not implemented yet");
+            jcpu_or_disas_assert(!"Not implemented yet");
             break;
     }
-    qcpu_or_disas_assert(!"Never comes here");
+    jcpu_or_disas_assert(!"Never comes here");
 }
 
 bool arm_vm::disas_compare_immediate(target_ulong insn){
@@ -350,7 +350,7 @@ bool arm_vm::disas_compare_immediate(target_ulong insn){
             gen_set_sr(arm_arch::SR_F, builder->CreateICmpSLE(gen_get_reg(rA, "l.sflesi_A"), I16s, "l.sflesi_I"), "l.sflesi");
             return false;
         default:
-            qcpu_or_disas_assert(!"Not implemented yet");
+            jcpu_or_disas_assert(!"Not implemented yet");
             break;
     }
 }
@@ -388,7 +388,7 @@ bool arm_vm::disas_compare(target_ulong insn){
             gen_set_sr(arm_arch::SR_F, builder->CreateICmpSLE(gen_get_reg(rA), gen_get_reg(rB)));
             return false;
         default:
-            qcpu_or_disas_assert(!"Not implemented yet");
+            jcpu_or_disas_assert(!"Not implemented yet");
             break;
     }
 }
@@ -407,7 +407,7 @@ bool arm_vm::disas_others(target_ulong insn, int *const insn_depth){
     ConstantInt *const I11 = ConstantInt::get(*context, APInt(11, bit_sub<0, 11>(insn)));
     ConstantInt *const n26 = ConstantInt::get(*context, APInt(26, bit_sub<0, 26>(insn)));
     ConstantInt *const I = ConstantInt::get(*context, APInt(16, (bit_sub<21, 5>(insn) << 11) | bit_sub<0, 11>(insn)));
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 0
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 0
     //std::cerr << "op0:" << std::hex << op0 << " rA:" << bit_sub<21, 5>(insn) << " rB:" << bit_sub<11, 5>(insn) << " rD" << bit_sub<21, 5>(insn) << " lo16:" << bit_sub<0, 16>(insn) << std::endl;
 #endif
     switch(op0){
@@ -418,7 +418,7 @@ bool arm_vm::disas_others(target_ulong insn, int *const insn_depth){
                 Value *const pc_offset = builder->CreateShl(builder->CreateSExt(n26, get_reg_type(), mn), 2, mn);
                 gen_set_reg(arm_arch::REG_PNEXT_PC, builder->CreateAdd(pc, pc_offset, mn), mn);
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
-                qcpu_or_disas_assert(!ret);
+                jcpu_or_disas_assert(!ret);
                 return true;
             }
         case 0x01://l.jal
@@ -429,7 +429,7 @@ bool arm_vm::disas_others(target_ulong insn, int *const insn_depth){
                 Value *const nd_bit = builder->CreateAnd(builder->CreateLShr(gen_get_reg(arm_arch::REG_CPUCFGR), gen_const(arm_arch::CPUCFGR_ND)), gen_const(1));
                 gen_set_reg(arm_arch::REG_LR, builder->CreateAdd(pc, gen_cond_code(nd_bit, gen_const(4), gen_const(8))));//check spr
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
-                qcpu_or_disas_assert(!ret);
+                jcpu_or_disas_assert(!ret);
                 return true;
             }
         case 0x03: //l.bnf
@@ -448,7 +448,7 @@ bool arm_vm::disas_others(target_ulong insn, int *const insn_depth){
                 gen_set_reg(arm_arch::REG_PNEXT_PC, next_pc);
                 gen_set_reg(arm_arch::REG_SR, builder->CreateAnd(flag, ~(static_cast<target_ulong>(1) << arm_arch::SR_F), mn));
                 const bool ret = disas_insn(pc + static_cast<virt_addr_t>(4), insn_depth); //delay slot
-                qcpu_or_disas_assert(!ret);
+                jcpu_or_disas_assert(!ret);
             }
             return true;
         case 0x05:
@@ -456,7 +456,7 @@ bool arm_vm::disas_others(target_ulong insn, int *const insn_depth){
                 return false;
             }
             else{
-                qcpu_or_disas_assert(!"Not implemented yet");
+                jcpu_or_disas_assert(!"Not implemented yet");
             }
             break;
         case 0x06:
@@ -466,7 +466,7 @@ bool arm_vm::disas_others(target_ulong insn, int *const insn_depth){
                 return false;
             }
             else{
-                qcpu_or_disas_assert(!"Not implemented yet");
+                jcpu_or_disas_assert(!"Not implemented yet");
             }
             break;
         case 0x11: //l.jr PC = rB
@@ -474,7 +474,7 @@ bool arm_vm::disas_others(target_ulong insn, int *const insn_depth){
                 static const char *const mn = "l.jr";
                 gen_set_reg(arm_arch::REG_PNEXT_PC, gen_get_reg(rB, mn), mn);
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
-                qcpu_or_disas_assert(!ret);
+                jcpu_or_disas_assert(!ret);
                 return true;
             }
             return true;
@@ -541,7 +541,7 @@ bool arm_vm::disas_others(target_ulong insn, int *const insn_depth){
             return false;
  
         default:
-            qcpu_or_disas_assert(!"Not implemented yet");
+            jcpu_or_disas_assert(!"Not implemented yet");
             break;
     }
 }
@@ -566,20 +566,20 @@ void arm_vm::start_func(phys_addr_t pc_p){
     cur_func = func_main;
     cur_bb = bb;
     gen_set_reg(arm_arch::REG_PC, gen_get_reg(arm_arch::REG_PNEXT_PC, "prologue"), "prologue");
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
     gen_set_reg(arm_arch::REG_PNEXT_PC, gen_const(0xFFFFFFFF), "prologue"); //poison value
 #endif
 }
 
 llvm::Function * arm_vm::end_func(){
     llvm::Value *const pc = gen_get_reg(arm_arch::REG_PNEXT_PC, "epilogue");
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
-    builder->CreateCall(mod->getFunction("qcpu_vm_dump_regs"));
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
+    builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
 #endif
     builder->CreateRet(pc);
     llvm::Function *const ret = cur_func;
-    cur_func = QCPU_NULLPTR;
-    cur_bb = QCPU_NULLPTR;
+    cur_func = JCPU_NULLPTR;
+    cur_bb = JCPU_NULLPTR;
 
     return ret;
 }
@@ -594,12 +594,12 @@ gdb::gdb_target_if::run_state_e arm_vm::run(){
             return RUN_STAT_BREAK;
         }
         pc = bb->exec();
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
         dump_regs();
 #endif
         total_icount += bb->get_icount();
     }
-    qcpu_assert(!"Never comes here");
+    jcpu_assert(!"Never comes here");
     return RUN_STAT_NORMAL;
 }
 
@@ -610,7 +610,7 @@ gdb::gdb_target_if::run_state_e arm_vm::step_exec(){
     bb_man.invalidate(pc_p, pc_p + phys_addr_t(4));
     const basic_block *const bb = bb_man.exists_by_start_addr(pc_p) ? bb_man.find_by_start_addr(pc_p) : disas(pc, 1, nearest);
     pc = bb->exec();
-#if defined(QCPU_OPENRISC_DEBUG) && QCPU_OPENRISC_DEBUG > 1
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
     dump_regs();
 #endif
     total_icount += bb->get_icount();
@@ -642,7 +642,7 @@ void arm_vm::dump_regs()const{
     std::cout << std::endl;
 }
 
-arm::arm(const char *model) : qcpu(), vm(QCPU_NULLPTR){
+arm::arm(const char *model) : jcpu(), vm(JCPU_NULLPTR){
 }
 
 arm::~arm(){
@@ -663,11 +663,11 @@ void arm::run(run_option_e opt){
         vm->run();
     }
     else if(opt == RUN_OPTION_WATI_GDB){
-        ::qcpu::gdb::gdb_server gdb_srv(1234);
+        ::jcpu::gdb::gdb_server gdb_srv(1234);
         gdb_srv.wait_and_run(*vm); 
     }
     else{
-        qcpu_assert(!"Not supported option");
+        jcpu_assert(!"Not supported option");
     }
 }
 
@@ -677,7 +677,7 @@ uint64_t arm::get_total_insn_count()const{
 
 
 } //end of namespace arm
-} //end of namespace qcpu
+} //end of namespace jcpu
 
 
 

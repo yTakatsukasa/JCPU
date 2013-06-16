@@ -1,8 +1,8 @@
-#ifndef QCPU_GDBSERVER_H
-#define QCPU_GDBSERVER_H
+#ifndef JCPU_GDBSERVER_H
+#define JCPU_GDBSERVER_H
 #include <stdint.h>
 #include <vector>
-namespace qcpu{
+namespace jcpu{
 namespace gdb{
 
 class gdb_target_if{

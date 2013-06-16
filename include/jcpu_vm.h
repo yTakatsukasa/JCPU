@@ -1,5 +1,5 @@
-#ifndef QCPU_VM_H
-#define QCPU_VM_H
+#ifndef JCPU_VM_H
+#define JCPU_VM_H
 
 #include <stdint.h>
 #include <vector>
@@ -11,18 +11,18 @@
 #include <llvm/Support/raw_ostream.h> //outs()
 #include <llvm/Assembly/PrintModulePass.h> //PrintModulePass
 #include <llvm/Module.h>
-#include "qcpu.h"
-#include "qcpu_internal.h"
+#include "jcpu.h"
+#include "jcpu_internal.h"
 #include "gdbserver.h"
 namespace llvm{class Function;}
 
-namespace qcpu{
+namespace jcpu{
 namespace vm{
 
-class qcpu_vm_if{
+class jcpu_vm_if{
     public:
     virtual void dump_regs()const = 0;
-    virtual ~qcpu_vm_if(){}
+    virtual ~jcpu_vm_if(){}
 };
 
 template<typename T, typename ARCH, int TAG>
@@ -114,20 +114,20 @@ class bp_manager{
     }
     void remove(virt_addr_t pc){
         typename std::map<virt_addr_t, bp_type *>::iterator it = bps_by_addr.find(pc);
-        qcpu_assert(it != bps_by_addr.end());
+        jcpu_assert(it != bps_by_addr.end());
         delete it->second;
         bps_by_addr.erase(it);
     }
     const bp_type *find_nearest(virt_addr_t pc)const{
         const typename std::map<virt_addr_t, bp_type *>::const_iterator it = bps_by_addr.lower_bound(pc);
-        return it == bps_by_addr.end() ? QCPU_NULLPTR : it->second;
+        return it == bps_by_addr.end() ? JCPU_NULLPTR : it->second;
     }
 };
 
 template<typename ARCH>
-class qcpu_vm_base : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_target_if{
+class jcpu_vm_base : public ::jcpu::vm::jcpu_vm_if, public ::jcpu::gdb::gdb_target_if{
     protected:
-    qcpu_ext_if &ext_ifs;
+    jcpu_ext_if &ext_ifs;
     llvm::LLVMContext *context;
     typedef typename ARCH::reg_e reg_e;
     typedef typename ARCH::sr_flag_e sr_flag_e;
@@ -145,7 +145,7 @@ class qcpu_vm_base : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_targ
         else if(ARCH::reg_bit_width == 64)
             return builder->getInt64Ty();
         else
-            qcpu_assert(!"Not supported yet");
+            jcpu_assert(!"Not supported yet");
     }
     llvm::ConstantInt *reg_index(reg_e r)const{
         return llvm::ConstantInt::get(*context, llvm::APInt(16, r));
@@ -190,12 +190,12 @@ class qcpu_vm_base : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_targ
     uint64_t total_icount;
 
     //gdb_target_if
-    virtual unsigned int get_reg_width()const QCPU_OVERRIDE{
+    virtual unsigned int get_reg_width()const JCPU_OVERRIDE{
         return sizeof(target_ulong) * 8;
     }
-    //virtual void get_reg_value(std::vector<uint64_t> &)const QCPU_OVERRIDE;
-    //virtual void set_reg_value(unsigned int, uint64_t)QCPU_OVERRIDE;
-    virtual run_state_e run_continue(bool is_step) QCPU_OVERRIDE{
+    //virtual void get_reg_value(std::vector<uint64_t> &)const JCPU_OVERRIDE;
+    //virtual void set_reg_value(unsigned int, uint64_t)JCPU_OVERRIDE;
+    virtual run_state_e run_continue(bool is_step) JCPU_OVERRIDE{
         if(is_step){
             return step_exec();
         }
@@ -203,13 +203,13 @@ class qcpu_vm_base : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_targ
             return run();
         }
     }
-    virtual uint64_t read_mem_dbg(uint64_t virt_addr, unsigned int len) QCPU_OVERRIDE{
+    virtual uint64_t read_mem_dbg(uint64_t virt_addr, unsigned int len) JCPU_OVERRIDE{
         return ext_ifs.mem_read_dbg(virt_addr, len);
     }
-    virtual void write_mem_dbg(uint64_t virt_addr, unsigned int len, uint64_t val) QCPU_OVERRIDE{
+    virtual void write_mem_dbg(uint64_t virt_addr, unsigned int len, uint64_t val) JCPU_OVERRIDE{
         ext_ifs.mem_write_dbg(virt_addr, len, val);
     }
-    virtual void set_unset_break_point(bool set, uint64_t virt_addr) QCPU_OVERRIDE{
+    virtual void set_unset_break_point(bool set, uint64_t virt_addr) JCPU_OVERRIDE{
         const virt_addr_t pc_v(virt_addr);
         if(set){
             bp_man.add(pc_v);
@@ -227,7 +227,7 @@ class qcpu_vm_base : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_targ
     virtual run_state_e step_exec() = 0;
     phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);} //FIXME implement MMU
 
-    explicit qcpu_vm_base(qcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(QCPU_NULLPTR), cur_bb(QCPU_NULLPTR)
+    explicit jcpu_vm_base(jcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(JCPU_NULLPTR), cur_bb(JCPU_NULLPTR)
     {
 
         context = &llvm::getGlobalContext();
@@ -251,5 +251,5 @@ class qcpu_vm_base : public ::qcpu::vm::qcpu_vm_if, public ::qcpu::gdb::gdb_targ
 
 
 } //end of namespace vm
-} //end of namespace qcpu
+} //end of namespace jcpu
 #endif
