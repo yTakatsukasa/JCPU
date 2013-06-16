@@ -1,6 +1,6 @@
 
 //FIXME set register bit width
-void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs) {
+void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsigned int address_space) {
     using namespace llvm;
 
     // Type Definitions
@@ -139,7 +139,7 @@ void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs) {
 }
 
 
-void make_mem_access(llvm::Module *mod) {
+void make_mem_access(llvm::Module *mod, unsigned int address_space) {
     using namespace llvm;
     // Module Construction
     // Type Definitions
@@ -154,16 +154,16 @@ void make_mem_access(llvm::Module *mod) {
             /*Params=*/FuncTy_3_args,
             /*isVarArg=*/true);
 
-    PointerType* PointerTy_2 = PointerType::get(FuncTy_3, 0);
+    PointerType* PointerTy_2 = PointerType::get(FuncTy_3, address_space);
 
-    PointerType* PointerTy_1 = PointerType::get(PointerTy_2, 0);
+    PointerType* PointerTy_1 = PointerType::get(PointerTy_2, address_space);
 
     StructTy_class_jcpu__jcpu_ext_if_fields.push_back(PointerTy_1);
     if (StructTy_class_jcpu__jcpu_ext_if->isOpaque()) {
         StructTy_class_jcpu__jcpu_ext_if->setBody(StructTy_class_jcpu__jcpu_ext_if_fields, /*isPacked=*/false);
     }
 
-    PointerType* PointerTy_0 = PointerType::get(StructTy_class_jcpu__jcpu_ext_if, 0);
+    PointerType* PointerTy_0 = PointerType::get(StructTy_class_jcpu__jcpu_ext_if, address_space);
 
     std::vector<Type*>FuncTy_5_args;
     FuncTy_5_args.push_back(PointerTy_0);
@@ -189,11 +189,11 @@ void make_mem_access(llvm::Module *mod) {
             /*Params=*/FuncTy_10_args,
             /*isVarArg=*/false);
 
-    PointerType* PointerTy_9 = PointerType::get(FuncTy_10, 0);
+    PointerType* PointerTy_9 = PointerType::get(FuncTy_10, address_space);
 
-    PointerType* PointerTy_8 = PointerType::get(PointerTy_9, 0);
+    PointerType* PointerTy_8 = PointerType::get(PointerTy_9, address_space);
 
-    PointerType* PointerTy_7 = PointerType::get(PointerTy_8, 0);
+    PointerType* PointerTy_7 = PointerType::get(PointerTy_8, address_space);
 
     std::vector<Type*>FuncTy_11_args;
     FuncTy_11_args.push_back(IntegerType::get(mod->getContext(), 64));
@@ -214,11 +214,11 @@ void make_mem_access(llvm::Module *mod) {
             /*Params=*/FuncTy_15_args,
             /*isVarArg=*/false);
 
-    PointerType* PointerTy_14 = PointerType::get(FuncTy_15, 0);
+    PointerType* PointerTy_14 = PointerType::get(FuncTy_15, address_space);
 
-    PointerType* PointerTy_13 = PointerType::get(PointerTy_14, 0);
+    PointerType* PointerTy_13 = PointerType::get(PointerTy_14, address_space);
 
-    PointerType* PointerTy_12 = PointerType::get(PointerTy_13, 0);
+    PointerType* PointerTy_12 = PointerType::get(PointerTy_13, address_space);
 
 
     // Function Declarations
@@ -520,7 +520,7 @@ void make_mem_access(llvm::Module *mod) {
 }
 
 
-void make_debug_func(llvm::Module *mod) {
+void make_debug_func(llvm::Module *mod, unsigned int address_space) {
     using namespace llvm;
 
     // Type Definitions
@@ -535,16 +535,16 @@ void make_debug_func(llvm::Module *mod) {
             /*Params=*/FuncTy_3_args,
             /*isVarArg=*/true);
 
-    PointerType* PointerTy_2 = PointerType::get(FuncTy_3, 0);
+    PointerType* PointerTy_2 = PointerType::get(FuncTy_3, address_space);
 
-    PointerType* PointerTy_1 = PointerType::get(PointerTy_2, 0);
+    PointerType* PointerTy_1 = PointerType::get(PointerTy_2, address_space);
 
     StructTy_class_jcpu__vm__jcpu_vm_if_fields.push_back(PointerTy_1);
     if (StructTy_class_jcpu__vm__jcpu_vm_if->isOpaque()) {
         StructTy_class_jcpu__vm__jcpu_vm_if->setBody(StructTy_class_jcpu__vm__jcpu_vm_if_fields, /*isPacked=*/false);
     }
 
-    PointerType* PointerTy_0 = PointerType::get(StructTy_class_jcpu__vm__jcpu_vm_if, 0);
+    PointerType* PointerTy_0 = PointerType::get(StructTy_class_jcpu__vm__jcpu_vm_if, address_space);
 
     std::vector<Type*>FuncTy_5_args;
     FuncTy_5_args.push_back(PointerTy_0);
@@ -559,11 +559,11 @@ void make_debug_func(llvm::Module *mod) {
             /*Params=*/FuncTy_6_args,
             /*isVarArg=*/false);
 
-    PointerType* PointerTy_9 = PointerType::get(FuncTy_5, 0);
+    PointerType* PointerTy_9 = PointerType::get(FuncTy_5, address_space);
 
-    PointerType* PointerTy_8 = PointerType::get(PointerTy_9, 0);
+    PointerType* PointerTy_8 = PointerType::get(PointerTy_9, address_space);
 
-    PointerType* PointerTy_7 = PointerType::get(PointerTy_8, 0);
+    PointerType* PointerTy_7 = PointerType::get(PointerTy_8, address_space);
 
 
     // Function Declarations

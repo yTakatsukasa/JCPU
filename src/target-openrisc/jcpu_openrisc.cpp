@@ -35,9 +35,9 @@ inline T bit_sub(T v){
 
 
 
-void make_set_get(llvm::Module *, llvm::GlobalVariable *);
-void make_mem_access(llvm::Module *);
-void make_debug_func(llvm::Module *);
+void make_set_get(llvm::Module *, llvm::GlobalVariable *, unsigned int);
+void make_mem_access(llvm::Module *, unsigned int);
+void make_debug_func(llvm::Module *, unsigned int);
 
 
 } //end of unnamed namespace
@@ -114,7 +114,7 @@ class openrisc_vm : public vm::jcpu_vm_base<openrisc_arch>{
 
 openrisc_vm::openrisc_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<openrisc_arch>(ifs) 
 {
-
+    const unsigned int address_space = 5;
     const unsigned int bit = sizeof(target_ulong) * 8;
     const unsigned int num_regs = openrisc_arch::NUM_REGS;
     llvm::ArrayType *const ATy = llvm::ArrayType::get(llvm::IntegerType::get(*context, bit), num_regs);
@@ -128,12 +128,12 @@ openrisc_vm::openrisc_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<openrisc_arch>(ifs
     }
 
     llvm::Constant *const init = llvm::ConstantArray::get(ATy, Initializer);
-    llvm::GlobalVariable *const global_regs = new llvm::GlobalVariable(*mod, ATy, true, llvm::GlobalValue::CommonLinkage, init, "regs");
+    llvm::GlobalVariable *const global_regs = new llvm::GlobalVariable(*mod, ATy, true, llvm::GlobalValue::CommonLinkage, init, "regs", 0, llvm::GlobalVariable::NotThreadLocal, address_space);
     global_regs->setAlignment(bit / 8);
 
-    make_set_get(mod, global_regs);
-    make_mem_access(mod);
-    make_debug_func(mod);
+    make_set_get(mod, global_regs, address_space);
+    make_mem_access(mod, address_space);
+    make_debug_func(mod, address_space);
 
     set_reg_func = reinterpret_cast<void (*)(uint16_t, target_ulong)>(ee->getPointerToFunction(mod->getFunction("set_reg")));
     get_reg_func = reinterpret_cast<target_ulong (*)(uint16_t)>(ee->getPointerToFunction(mod->getFunction("get_reg")));
@@ -246,6 +246,9 @@ const basic_block *openrisc_vm::disas(virt_addr_t start_pc_, int max_insn, const
     llvm::Function *const f = end_func();
     basic_block *const bb = new basic_block(start_pc, phys_addr_t(pc - 4), f, ee, num_insn);
     bb_man.add(bb);
+#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 2
+    dump_ir();
+#endif
     return bb;
 }
 
