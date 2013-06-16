@@ -2,6 +2,7 @@
 #include "jcpu.h"
 #include "jcpu_internal.h"
 #include "jcpu_openrisc.h"
+#include "jcpu_arm.h"
 
 namespace jcpu{
 
@@ -14,8 +15,17 @@ void jcpu::set_ext_interface(jcpu_ext_if *ifs){
 }
 
 
-jcpu * jcpu::create(const char*arch, const char *model){
-    return new openrisc::openrisc(model);
+jcpu * jcpu::create(const char*arch_, const char *model){
+    const std::string arch(arch_);
+    if(arch == "openrisc"){
+        return new openrisc::openrisc(model);
+    }
+    else if(arch == "arm"){
+        return new arm::arm(model);
+    }
+    else{
+        jcpu_assert(!"Not supported architecture");
+    }
 }
 
 
