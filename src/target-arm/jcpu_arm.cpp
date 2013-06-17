@@ -169,9 +169,9 @@ bool arm_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
         }
     } push_and_pop_pc(*this, pc_v, pc);
     const target_ulong insn = ext_ifs.mem_read(pc, sizeof(target_ulong));
-    const unsigned int kind = bit_sub<26, 6>(insn);
+    const unsigned int cond = bit_sub<28, 4>(insn);
 #if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 0
-    std::cout << std::hex << "pc:" << pc << " INSN:" << std::setw(8) << std::setfill('0') << insn << " kind:" << kind << std::endl;
+    std::cout << std::hex << "pc:" << pc << " INSN:" << std::setw(8) << std::setfill('0') << insn << " cond:" << cond << std::endl;
 #endif
 #if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 2
     builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
