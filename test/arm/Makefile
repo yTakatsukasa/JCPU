@@ -16,10 +16,10 @@ endif
 CPPFLAGS			:= $(addprefix -I,$(INCLUDE_DIRS)) $(shell llvm-config --cppflags)
 ifeq ($(DEBUG),1)
 DEBUGGER_CMD		:= gdb --args
-CXXFLAGS			:= $(filter-out -O%,$(shell llvm-config --cxxflags)) -g3 -O0 -Wall -std=c++11
+CXXFLAGS			:= $(filter-out -O%,$(shell llvm-config --cxxflags)) -g3 -O0 -Wall -std=c++11 -fcxx-exceptions
 else
 DEBUGGER_CMD		:=
-CXXFLAGS			:= $(filter-out -O%,$(shell llvm-config --cxxflags)) -g3 -O3 -Wall -std=c++11
+CXXFLAGS			:= $(filter-out -O%,$(shell llvm-config --cxxflags)) -g3 -O3 -Wall -std=c++11 -fcxx-exceptions
 endif
 CFLAGS				:= $(CXXFLAGS)
 LIB_DIRS			:=
