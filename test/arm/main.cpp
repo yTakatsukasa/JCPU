@@ -77,7 +77,7 @@ class dummy_mem : public jcpu::jcpu_ext_if{
                 abort();
             }
         }
-        else if(addr == 0x60000004){
+        else if(addr == 0x60000004 || addr == 0x10500004){
             //assert(be == 0x8);
             const char c = val;
             if(prefix_need_to_show)
@@ -127,8 +127,8 @@ int main(int argc, char *argv[]){
     cpu->set_ext_interface(&mem);
     cpu->reset(true);
     cpu->reset(false);
-    //cpu->run(cpu->RUN_OPTION_NORMAL);
-    cpu->run(cpu->RUN_OPTION_WATI_GDB);
+    cpu->run(cpu->RUN_OPTION_NORMAL);
+    //cpu->run(cpu->RUN_OPTION_WATI_GDB);
 
     delete cpu;
 
