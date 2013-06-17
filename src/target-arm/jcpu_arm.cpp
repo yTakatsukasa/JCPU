@@ -20,7 +20,7 @@
 
 namespace {
 #define jcpu_arm_disas_assert(cond) do{if(!(cond)){ \
-    /*dump_ir();*/ \
+    dump_ir(); \
     dump_regs(); \
     llvm::Function *const f = end_func(); \
     target_ulong (*const func)() = reinterpret_cast<target_ulong (*)()>(ee->getPointerToFunction(f)); \
@@ -54,12 +54,8 @@ struct arm_arch{
         REG_GR00, REG_GR01, REG_GR02, REG_GR03,
         REG_GR04, REG_GR05, REG_GR06, REG_GR07,
         REG_GR08, REG_GR09, REG_LR = REG_GR09, REG_GR10, REG_GR11,
-        REG_GR12, REG_GR13, REG_GR14, REG_GR15,
-        REG_GR16, REG_GR17, REG_GR18, REG_GR19,
-        REG_GR20, REG_GR21, REG_GR22, REG_GR23,
-        REG_GR24, REG_GR25, REG_GR26, REG_GR27,
-        REG_GR28, REG_GR29, REG_GR30, REG_GR31,
-        REG_PC, REG_SR, REG_CPUCFGR, REG_PNEXT_PC, NUM_REGS
+        REG_GR12, REG_GR13, REG_GR14, REG_LINK = REG_GR14, REG_GR15, REG_PC = REG_GR15,
+        REG_SR, REG_CPUCFGR, REG_PNEXT_PC, NUM_REGS
     };
 
     enum sr_flag_e{
@@ -88,11 +84,21 @@ class arm_vm : public vm::jcpu_vm_base<arm_arch>{
     virtual void set_reg_value(unsigned int, uint64_t)JCPU_OVERRIDE;
 
     virtual bool disas_insn(virt_addr_t, int *)JCPU_OVERRIDE;
+    bool disas_data_proc(target_ulong, int *);
+    bool disas_data_imm(target_ulong, int *);
+    bool disas_imm_ldst(target_ulong, int *);
+    bool disas_offset_ldst(target_ulong, int *);
+    bool disas_multi_ldst(target_ulong, int *);
+    bool disas_jump(target_ulong, int *);
+    bool disas_copro_ldst(target_ulong, int *);
+    bool disas_swi(target_ulong, int *);
+    bool disas_copro(target_ulong, int *);
     void start_func(phys_addr_t);
     llvm::Function * end_func();
     const basic_block *disas(virt_addr_t, int, const break_point *);
     virtual run_state_e step_exec() JCPU_OVERRIDE;
     phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);} //FIXME implement MMU
+    llvm::Value *gen_set_reg_by_cond(arm_arch::reg_e, unsigned int, llvm::Value *);
     public:
     explicit arm_vm(jcpu_ext_if &);
     virtual run_state_e run() JCPU_OVERRIDE;
@@ -169,14 +175,33 @@ bool arm_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
         }
     } push_and_pop_pc(*this, pc_v, pc);
     const target_ulong insn = ext_ifs.mem_read(pc, sizeof(target_ulong));
-    const unsigned int cond = bit_sub<28, 4>(insn);
+    const unsigned int kind = bit_sub<25, 3>(insn);
 #if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 0
-    std::cout << std::hex << "pc:" << pc << " INSN:" << std::setw(8) << std::setfill('0') << insn << " cond:" << cond << std::endl;
+    std::cout << std::hex << "pc:" << pc << " INSN:" << std::setw(8) << std::setfill('0') << insn << std::endl;
 #endif
 #if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 2
     builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
 #endif
     switch(kind){
+        case 0x0: //data_proc
+            return disas_data_proc(insn, insn_depth);
+        case 0x01:
+            return disas_data_imm(insn, insn_depth);
+        case 0x02:
+            return disas_imm_ldst(insn, insn_depth);
+        case 0x03:
+            return disas_offset_ldst(insn, insn_depth);
+        case 0x04:
+            return disas_multi_ldst(insn, insn_depth);
+        case 0x05:
+            return disas_jump(insn, insn_depth);
+        case 0x06:
+            return disas_copro_ldst(insn, insn_depth);
+        case 0x07:
+            if(bit_sub<24, 1>(insn))
+                return disas_swi(insn, insn_depth);
+            else
+                return disas_copro(insn, insn_depth);
         default:
         jcpu_assert(!"Not implemented yet");
     }
@@ -297,8 +322,11 @@ gdb::gdb_target_if::run_state_e arm_vm::step_exec(){
 
 void arm_vm::dump_regs()const{
     for(unsigned int i = 0; i < arm_arch::NUM_REGS; ++i){
-        if(i < 32){
+        if(i < 14){
             std::cout << "reg[" << std::dec << std::setw(2) << std::setfill('0') << i << "]:";
+        }
+        else if(i == arm_arch::REG_LINK){
+            std::cout << "lr:";
         }
         else if(i == arm_arch::REG_PC){
             std::cout << "pc:";
@@ -319,6 +347,95 @@ void arm_vm::dump_regs()const{
     }
     std::cout << std::endl;
 }
+
+
+
+bool arm_vm::disas_data_proc(target_ulong insn, int *const insn_dpeth){
+    //const unsigned int cond = bit_sub<28, 4>(insn);
+    jcpu_assert(!"Not implemented yet");
+    jcpu_assert(!"Never comes here");
+    return false; //suppress warnings
+}
+
+bool arm_vm::disas_data_imm(target_ulong insn, int *const insn_dpeth){
+    //const unsigned int cond = bit_sub<28, 4>(insn);
+    jcpu_assert(!"Not implemented yet");
+    jcpu_assert(!"Never comes here");
+    return false; //suppress warnings
+}
+
+bool arm_vm::disas_imm_ldst(target_ulong insn, int *const insn_dpeth){
+    //const unsigned int cond = bit_sub<28, 4>(insn);
+    jcpu_assert(!"Not implemented yet");
+    jcpu_assert(!"Never comes here");
+    return false; //suppress warnings
+}
+
+bool arm_vm::disas_offset_ldst(target_ulong insn, int *const insn_dpeth){
+    //const unsigned int cond = bit_sub<28, 4>(insn);
+    jcpu_assert(!"Not implemented yet");
+    jcpu_assert(!"Never comes here");
+    return false; //suppress warnings
+}
+
+bool arm_vm::disas_multi_ldst(target_ulong insn, int *const insn_dpeth){
+    //const unsigned int cond = bit_sub<28, 4>(insn);
+    jcpu_assert(!"Not implemented yet");
+    jcpu_assert(!"Never comes here");
+    return false; //suppress warnings
+}
+
+bool arm_vm::disas_jump(target_ulong insn, int *const insn_dpeth){
+    const unsigned int cond = bit_sub<28, 4>(insn);
+    const bool link = bit_sub<24,1>(insn);
+    const target_ulong offset_uint = bit_sub<0, 24>(insn);
+    llvm::Value *const offset_cint = llvm::ConstantInt::get(*context, llvm::APInt(24, offset_uint));
+    llvm::Value *const offset = builder->CreateShl(builder->CreateSExt(offset_cint, get_reg_type()), 2, "offset");
+    llvm::Value *const new_pc = builder->CreateAdd(builder->CreateAdd(gen_get_pc(), gen_const(8)), offset, "b.new_pc");
+    gen_set_reg_by_cond(arm_arch::REG_PNEXT_PC, cond, new_pc);
+    if(link){
+        llvm::Value *const next_pc = builder->CreateAdd(gen_get_pc(), gen_const(4), "bl.next_pc");
+        gen_set_reg_by_cond(arm_arch::REG_LINK, cond, next_pc);
+    }
+    return true;
+    jcpu_arm_disas_assert(!"Not implemented yet");
+    jcpu_assert(!"Never comes here");
+    return false; //suppress warnings
+}
+
+bool arm_vm::disas_copro_ldst(target_ulong insn, int *const insn_dpeth){
+    //const unsigned int cond = bit_sub<28, 4>(insn);
+    jcpu_arm_disas_assert(!"Not implemented yet");
+    jcpu_assert(!"Never comes here");
+    return false; //suppress warnings
+}
+
+bool arm_vm::disas_swi(target_ulong insn, int *const insn_dpeth){
+    //const unsigned int cond = bit_sub<28, 4>(insn);
+    jcpu_arm_disas_assert(!"Not implemented yet");
+    jcpu_assert(!"Never comes here");
+    return false; //suppress warnings
+}
+
+bool arm_vm::disas_copro(target_ulong insn, int *const insn_dpeth){
+    //const unsigned int cond = bit_sub<28, 4>(insn);
+    jcpu_arm_disas_assert(!"Not implemented yet");
+    jcpu_assert(!"Never comes here");
+    return false; //suppress warnings
+}
+
+
+llvm::Value * arm_vm::gen_set_reg_by_cond(arm_arch::reg_e reg, unsigned int cond, llvm::Value* val){
+    jcpu_arm_disas_assert(cond == 0xE);
+    return gen_set_reg(reg, val);
+}
+
+
+
+
+
+
+
 
 arm::arm(const char *model) : jcpu(), vm(JCPU_NULLPTR){
 }
