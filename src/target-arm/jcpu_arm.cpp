@@ -27,11 +27,6 @@ inline T bit_sub(T v){
 
 
 
-void make_set_get(llvm::Module *, llvm::GlobalVariable *, unsigned int);
-void make_mem_access(llvm::Module *, unsigned int);
-void make_debug_func(llvm::Module *, unsigned int);
-
-
 } //end of unnamed namespace
 
 namespace jcpu{
@@ -116,9 +111,9 @@ arm_vm::arm_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<arm_arch>(ifs)
     llvm::GlobalVariable *const global_regs = new llvm::GlobalVariable(*mod, ATy, true, llvm::GlobalValue::CommonLinkage, init, "regs", 0, llvm::GlobalVariable::NotThreadLocal, address_space);
     global_regs->setAlignment(bit / 8);
 
-    make_set_get(mod, global_regs, address_space);
-    make_mem_access(mod, address_space);
-    make_debug_func(mod, address_space);
+    vm::make_set_get(mod, global_regs, address_space);
+    vm::make_mem_access(mod, address_space);
+    vm::make_debug_func(mod, address_space);
 
     set_reg_func = reinterpret_cast<void (*)(uint16_t, target_ulong)>(ee->getPointerToFunction(mod->getFunction("set_reg")));
     get_reg_func = reinterpret_cast<target_ulong (*)(uint16_t)>(ee->getPointerToFunction(mod->getFunction("get_reg")));
@@ -465,10 +460,4 @@ uint64_t arm::get_total_insn_count()const{
 
 } //end of namespace arm
 } //end of namespace jcpu
-
-
-
-namespace {
-#include "arm_ir_helpers.h"
-} //end of unnamed namespace
 

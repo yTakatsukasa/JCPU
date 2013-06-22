@@ -15,6 +15,15 @@ namespace llvm{class Function;}
 namespace jcpu{
 namespace vm{
 
+enum jcpu_vm_arch_e{
+    JCPU_ARCH_OPENRISC,
+    JCPU_ARCH_ARM
+};
+
+void make_set_get(llvm::Module *, llvm::GlobalVariable *, unsigned int);
+void make_mem_access(llvm::Module *, unsigned int);
+void make_debug_func(llvm::Module *, unsigned int);
+
 class jcpu_vm_if{
     public:
     virtual void dump_regs()const = 0;

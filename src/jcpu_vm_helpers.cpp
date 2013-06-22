@@ -1,4 +1,7 @@
+#include "jcpu_llvm_headers.h"
 
+namespace jcpu{
+namespace vm{
 //FIXME set register bit width
 void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsigned int address_space) {
     using namespace llvm;
@@ -504,3 +507,5 @@ void make_debug_func(llvm::Module *mod, unsigned int address_space) {
 
 
 }
+} //end of namespace vm
+} //end of namespace jcpu
