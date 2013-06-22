@@ -5,7 +5,7 @@ RESULT_DIR	:= ./gen_cpp
 CLANG		:= clang
 
 $(IR_DIR)/%.s:$(SRC_DIR)/%.cpp
-	$(CLANG) -emit-llvm -c -Wall -S -O2 $< -o $@
+	$(CLANG) -emit-llvm -c -Wall -S -O2 $< -o $@ -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
 
 $(IR_DIR)/%.s:$(SRC_DIR)/%.c
 	$(CLANG) -emit-llvm -c -Wall -S -O2 $< -o $@

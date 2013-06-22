@@ -1,13 +1,13 @@
-#include "../../include/qcpu_vm.h"
+#include "../../../include/jcpu_vm.h"
 
-qcpu::vm::qcpu_vm_if *qcpu_vm_ptr;
+jcpu::vm::jcpu_vm_if *jcpu_vm_ptr;
 
 extern "C"{
-void set_qcpu_vm_ptr(qcpu::vm::qcpu_vm_if *ptr){
-    qcpu_vm_ptr = ptr;
+void set_jcpu_vm_ptr(jcpu::vm::jcpu_vm_if *ptr){
+    jcpu_vm_ptr = ptr;
 }
 
-void qcpu_vm_dump_regs(){
-    qcpu_vm_ptr->dump_regs();
+void jcpu_vm_dump_regs(){
+    jcpu_vm_ptr->dump_regs();
 }
 }

@@ -1,12 +1,12 @@
 #include <stdint.h>
-#include "../../include/qcpu.h"
+#include "../../../include/jcpu.h"
 
 
-qcpu::qcpu_ext_if *mem_access_if;
+jcpu::jcpu_ext_if *mem_access_if;
 
 
 extern "C" {
-void set_mem_access_if(qcpu::qcpu_ext_if *ifs){
+void set_mem_access_if(jcpu::jcpu_ext_if *ifs){
     mem_access_if = ifs;
 }
 uint64_t helper_mem_read(uint64_t addr, unsigned int length){
