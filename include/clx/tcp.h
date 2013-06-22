@@ -176,6 +176,9 @@ namespace clx {
 				nlisten_ = n;
 				return this->start();
 			}
+            virtual socket_int open(){//to suppress compiler warning of hidden overloaded
+                return basic_rawsocket<SOCK_STREAM, Family, 0>::open();
+            }
 			
 			basic_socket<Family> accept() {
 				socket_int s = -1;
