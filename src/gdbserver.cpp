@@ -146,12 +146,14 @@ std::vector<std::string> gdb_rcv_msg::split()const{
     return ret;
 }
 
+#ifdef JCPU_GDBSERVER_DEBUG
 std::ostream & operator << (std::ostream &os, const gdb_rcv_msg &msg){
     for(unsigned int i = 0, len = msg.get_msg_size(); i < len; ++i){
         os << msg[i];
     }
     return os << ' ' << (msg.check_csum() ? "CSUM OK" : "CSUM NG");
 }
+#endif
 
 
 } //end of unnamed namespace
@@ -220,6 +222,8 @@ void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
                 if(stat == gdb_target_if::RUN_STAT_BREAK){
                     std::cerr << "Break point" << std::endl;
                 }
+#else
+                static_cast<void>(stat); //suppress compiler warning
 #endif
             }
             else if(msg.start_with("m")){ //mem read
@@ -244,6 +248,8 @@ void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
 #if defined(JCPU_GDBSERVER_DEBUG) && JCPU_GDBSERVER_DEBUG > 0
                 std::cerr << (set_bp ? "Set " : "Unset ") << "Break point " << break_point_id
                     << " at " << std::hex << addr << std::endl;
+#else
+                static_cast<void>(break_point_id);//suppress compiler warning
 #endif
             }
             else if(msg.start_with("g")){//registers
