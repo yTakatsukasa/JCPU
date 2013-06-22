@@ -5,12 +5,8 @@
 #include <vector>
 #include <utility>
 #include <stack>
-#include <llvm/ExecutionEngine/JIT.h> 
-#include <llvm/IRBuilder.h> 
-#include <llvm/PassManager.h> //PassManager
-#include <llvm/Support/raw_ostream.h> //outs()
-#include <llvm/Assembly/PrintModulePass.h> //PrintModulePass
-#include <llvm/Module.h>
+
+#include "jcpu_llvm_headers.h"
 #include "jcpu.h"
 #include "jcpu_internal.h"
 #include "gdbserver.h"

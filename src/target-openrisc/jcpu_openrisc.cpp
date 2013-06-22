@@ -2,15 +2,7 @@
 #include <iostream>
 #include <iomanip>
 
-#include <llvm/LLVMContext.h>
-#include <llvm/ExecutionEngine/JIT.h> 
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Support/PrettyStackTrace.h>
-#include <llvm/Support/Signals.h>
-#include <llvm/Support/Debug.h> //EnableDebugBuffering
-#include <llvm/Analysis/Verifier.h> //verifyModule
-#include <llvm/Instructions.h> //LoadInst
-
+#include "jcpu_llvm_headers.h"
 #include "jcpu_vm.h"
 #include "gdbserver.h"
 #include "jcpu_openrisc.h"
