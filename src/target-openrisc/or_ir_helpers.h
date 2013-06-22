@@ -31,31 +31,6 @@ void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsi
                 /*Name=*/"get_reg", mod); 
         func_get_reg->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_get_reg_PAL;
-    if(0){
-        SmallVector<AttributeWithIndex, 4> Attrs;
-        AttributeWithIndex PAWI;
-        PAWI.Index = 1U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::ZExt);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        PAWI.Index = 4294967295U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::NoUnwind);
-            B.addAttribute(Attributes::ReadOnly);
-            B.addAttribute(Attributes::UWTable);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        func_get_reg_PAL = AttrListPtr::get(mod->getContext(), Attrs);
-
-    }
-    func_get_reg->setAttributes(func_get_reg_PAL);
-
     Function* func_set_reg = mod->getFunction("set_reg");
     if (!func_set_reg) {
         func_set_reg = Function::Create(
@@ -64,30 +39,6 @@ void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsi
                 /*Name=*/"set_reg", mod); 
         func_set_reg->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_set_reg_PAL;
-    if(0){
-        SmallVector<AttributeWithIndex, 4> Attrs;
-        AttributeWithIndex PAWI;
-        PAWI.Index = 1U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::ZExt);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        PAWI.Index = 4294967295U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::NoUnwind);
-            B.addAttribute(Attributes::UWTable);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        func_set_reg_PAL = AttrListPtr::get(mod->getContext(), Attrs);
-
-    }
-    func_set_reg->setAttributes(func_set_reg_PAL);
-
     // Global Variable Declarations
 
     ConstantInt* const_int64_6 = ConstantInt::get(mod->getContext(), APInt(64, 0));
@@ -231,23 +182,6 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
                 /*Name=*/"set_mem_access_if", mod); 
         func_set_mem_access_if->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_set_mem_access_if_PAL;
-    {
-        SmallVector<AttributeWithIndex, 4> Attrs;
-        AttributeWithIndex PAWI;
-        PAWI.Index = 4294967295U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::NoUnwind);
-            B.addAttribute(Attributes::UWTable);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        func_set_mem_access_if_PAL = AttrListPtr::get(mod->getContext(), Attrs);
-
-    }
-    func_set_mem_access_if->setAttributes(func_set_mem_access_if_PAL);
-
     Function* func_helper_mem_read = mod->getFunction("helper_mem_read");
     if (!func_helper_mem_read) {
         func_helper_mem_read = Function::Create(
@@ -256,22 +190,6 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
                 /*Name=*/"helper_mem_read", mod); 
         func_helper_mem_read->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_helper_mem_read_PAL;
-    {
-        SmallVector<AttributeWithIndex, 4> Attrs;
-        AttributeWithIndex PAWI;
-        PAWI.Index = 4294967295U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::UWTable);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        func_helper_mem_read_PAL = AttrListPtr::get(mod->getContext(), Attrs);
-
-    }
-    func_helper_mem_read->setAttributes(func_helper_mem_read_PAL);
-
     Function* func_helper_mem_write = mod->getFunction("helper_mem_write");
     if (!func_helper_mem_write) {
         func_helper_mem_write = Function::Create(
@@ -280,22 +198,6 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
                 /*Name=*/"helper_mem_write", mod); 
         func_helper_mem_write->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_helper_mem_write_PAL;
-    {
-        SmallVector<AttributeWithIndex, 4> Attrs;
-        AttributeWithIndex PAWI;
-        PAWI.Index = 4294967295U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::UWTable);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        func_helper_mem_write_PAL = AttrListPtr::get(mod->getContext(), Attrs);
-
-    }
-    func_helper_mem_write->setAttributes(func_helper_mem_write_PAL);
-
     Function* func_helper_mem_read_debug = mod->getFunction("helper_mem_read_debug");
     if (!func_helper_mem_read_debug) {
         func_helper_mem_read_debug = Function::Create(
@@ -304,22 +206,6 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
                 /*Name=*/"helper_mem_read_debug", mod); 
         func_helper_mem_read_debug->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_helper_mem_read_debug_PAL;
-    {
-        SmallVector<AttributeWithIndex, 4> Attrs;
-        AttributeWithIndex PAWI;
-        PAWI.Index = 4294967295U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::UWTable);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        func_helper_mem_read_debug_PAL = AttrListPtr::get(mod->getContext(), Attrs);
-
-    }
-    func_helper_mem_read_debug->setAttributes(func_helper_mem_read_debug_PAL);
-
     Function* func_helper_mem_write_debug = mod->getFunction("helper_mem_write_debug");
     if (!func_helper_mem_write_debug) {
         func_helper_mem_write_debug = Function::Create(
@@ -328,22 +214,6 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
                 /*Name=*/"helper_mem_write_debug", mod); 
         func_helper_mem_write_debug->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_helper_mem_write_debug_PAL;
-    {
-        SmallVector<AttributeWithIndex, 4> Attrs;
-        AttributeWithIndex PAWI;
-        PAWI.Index = 4294967295U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::UWTable);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        func_helper_mem_write_debug_PAL = AttrListPtr::get(mod->getContext(), Attrs);
-
-    }
-    func_helper_mem_write_debug->setAttributes(func_helper_mem_write_debug_PAL);
-
     // Global Variable Declarations
 
 
@@ -406,8 +276,6 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
         CallInst* int64_28 = CallInst::Create(ptr_27, int64_28_params, "", label_23);
         int64_28->setCallingConv(CallingConv::C);
         int64_28->setTailCall(true);
-        AttrListPtr int64_28_PAL;
-        int64_28->setAttributes(int64_28_PAL);
 
         ReturnInst::Create(mod->getContext(), int64_28, label_23);
 
@@ -442,8 +310,6 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
         CallInst* void_38 = CallInst::Create(ptr_37, void_38_params, "", label_32);
         void_38->setCallingConv(CallingConv::C);
         void_38->setTailCall(true);
-        AttrListPtr void_38_PAL;
-        void_38->setAttributes(void_38_PAL);
 
         ReturnInst::Create(mod->getContext(), label_32);
 
@@ -475,8 +341,6 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
         CallInst* int64_48 = CallInst::Create(ptr_47, int64_48_params, "", label_42);
         int64_48->setCallingConv(CallingConv::C);
         int64_48->setTailCall(true);
-        AttrListPtr int64_48_PAL;
-        int64_48->setAttributes(int64_48_PAL);
 
         ReturnInst::Create(mod->getContext(), int64_48, label_42);
 
@@ -511,8 +375,6 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
         CallInst* void_59 = CallInst::Create(ptr_58, void_59_params, "", label_53);
         void_59->setCallingConv(CallingConv::C);
         void_59->setTailCall(true);
-        AttrListPtr void_59_PAL;
-        void_59->setAttributes(void_59_PAL);
 
         ReturnInst::Create(mod->getContext(), label_53);
 
@@ -576,23 +438,6 @@ void make_debug_func(llvm::Module *mod, unsigned int address_space) {
                 /*Name=*/"set_jcpu_vm_ptr", mod); 
         func_set_jcpu_vm_ptr->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_set_jcpu_vm_ptr_PAL;
-    {
-        SmallVector<AttributeWithIndex, 4> Attrs;
-        AttributeWithIndex PAWI;
-        PAWI.Index = 4294967295U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::NoUnwind);
-            B.addAttribute(Attributes::UWTable);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        func_set_jcpu_vm_ptr_PAL = AttrListPtr::get(mod->getContext(), Attrs);
-
-    }
-    func_set_jcpu_vm_ptr->setAttributes(func_set_jcpu_vm_ptr_PAL);
-
     Function* func_jcpu_vm_dump_regs = mod->getFunction("jcpu_vm_dump_regs");
     if (!func_jcpu_vm_dump_regs) {
         func_jcpu_vm_dump_regs = Function::Create(
@@ -601,22 +446,6 @@ void make_debug_func(llvm::Module *mod, unsigned int address_space) {
                 /*Name=*/"jcpu_vm_dump_regs", mod); 
         func_jcpu_vm_dump_regs->setCallingConv(CallingConv::C);
     }
-    AttrListPtr func_jcpu_vm_dump_regs_PAL;
-    {
-        SmallVector<AttributeWithIndex, 4> Attrs;
-        AttributeWithIndex PAWI;
-        PAWI.Index = 4294967295U;
-        {
-            AttrBuilder B;
-            B.addAttribute(Attributes::UWTable);
-            PAWI.Attrs = Attributes::get(mod->getContext(), B);
-        }
-        Attrs.push_back(PAWI);
-        func_jcpu_vm_dump_regs_PAL = AttrListPtr::get(mod->getContext(), Attrs);
-
-    }
-    func_jcpu_vm_dump_regs->setAttributes(func_jcpu_vm_dump_regs_PAL);
-
     // Global Variable Declarations
 
 
@@ -667,8 +496,6 @@ void make_debug_func(llvm::Module *mod, unsigned int address_space) {
         CallInst* void_19 = CallInst::Create(ptr_18, ptr_15, "", label_14);
         void_19->setCallingConv(CallingConv::C);
         void_19->setTailCall(true);
-        AttrListPtr void_19_PAL;
-        void_19->setAttributes(void_19_PAL);
 
         ReturnInst::Create(mod->getContext(), label_14);
 
