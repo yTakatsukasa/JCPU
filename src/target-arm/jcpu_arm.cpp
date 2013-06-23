@@ -352,7 +352,27 @@ bool arm_vm::disas_data_imm(target_ulong insn, int *const insn_dpeth){
 }
 
 bool arm_vm::disas_imm_ldst(target_ulong insn, int *const insn_dpeth){
-    //const unsigned int cond = bit_sub<28, 4>(insn);
+    using namespace llvm;
+    const unsigned int cond = bit_sub<28, 4>(insn);
+    const bool P = bit_sub<24, 1>(insn);
+    const bool U = bit_sub<23, 1>(insn);
+    const bool B = bit_sub<22, 1>(insn);
+    const bool W = bit_sub<21, 1>(insn);
+    const bool L = bit_sub<20, 1>(insn);
+    llvm::Value *const Rn = ConstantInt::get(*context, APInt(4, bit_sub<16, 4>(insn)));
+    llvm::Value *const Rd = ConstantInt::get(*context, APInt(4, bit_sub<12, 4>(insn)));
+    llvm::Value *const Rn_val = gen_get_reg(Rn);
+    llvm::Value *const offset12 = ConstantInt::get(*context, APInt(12, bit_sub<0, 12>(insn)));
+    llvm::Value *const calc_addr = U ? builder->CreateAdd(Rn_val, offset12) : builder->CreateSub(Rn_val, offset12);
+    llvm::Value *const dst_addr = P ? calc_addr : Rn_val;
+    jcpu_assert(!B);
+    if(L){//load
+    }
+    else{//store
+    }
+    if(!(P ==1 && W == 0)){
+        gen_set_reg(Rn, calc_addr);
+    }
     jcpu_assert(!"Not implemented yet");
     jcpu_assert(!"Never comes here");
     return false; //suppress warnings
