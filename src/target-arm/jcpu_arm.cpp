@@ -7,7 +7,7 @@
 #include "gdbserver.h"
 #include "jcpu_arm.h"
 
-#define JCPU_ARM_DEBUG 3
+//#define JCPU_ARM_DEBUG 3
 
 
 namespace {
@@ -211,6 +211,7 @@ const basic_block *arm_vm::disas(virt_addr_t start_pc_, int max_insn, const brea
             int insn_depth = 0;
             done = disas_insn(virt_addr_t(pc), &insn_depth);
             num_insn += insn_depth;
+dump_ir();
         }
     }
     else{
@@ -345,7 +346,22 @@ bool arm_vm::disas_data_proc(target_ulong insn, int *const insn_dpeth){
 }
 
 bool arm_vm::disas_data_imm(target_ulong insn, int *const insn_dpeth){
-    //const unsigned int cond = bit_sub<28, 4>(insn);
+    using namespace llvm;
+    const unsigned int cond = bit_sub<28, 4>(insn);
+    const unsigned int op = bit_sub<21, 4>(insn);
+    const bool S = bit_sub<20, 1>(insn);
+    llvm::Value *const Rn = ConstantInt::get(*context, APInt(4, bit_sub<16, 4>(insn)));
+    llvm::Value *const Rd = ConstantInt::get(*context, APInt(4, bit_sub<12, 4>(insn)));
+    llvm::Value *const shifter = ConstantInt::get(*context, APInt(12, bit_sub<0, 12>(insn)));
+    jcpu_assert(!S);
+    switch(op){
+        case 0x4://add 
+            gen_set_reg(Rd, builder->CreateAdd(Rn, shifter, "add"), "add");
+            return false;
+        default:
+            jcpu_assert(!"Not implemented yet");
+    }
+
     jcpu_assert(!"Not implemented yet");
     jcpu_assert(!"Never comes here");
     return false; //suppress warnings
@@ -360,15 +376,27 @@ bool arm_vm::disas_imm_ldst(target_ulong insn, int *const insn_dpeth){
     const bool W = bit_sub<21, 1>(insn);
     const bool L = bit_sub<20, 1>(insn);
     llvm::Value *const Rn = ConstantInt::get(*context, APInt(4, bit_sub<16, 4>(insn)));
-    llvm::Value *const Rd = ConstantInt::get(*context, APInt(4, bit_sub<12, 4>(insn)));
+    const arm_arch::reg_e Rd_raw = static_cast<arm_arch::reg_e>(bit_sub<12, 4>(insn));
+    llvm::Value *const Rd = ConstantInt::get(*context, APInt(4, Rd_raw));
     llvm::Value *const Rn_val = gen_get_reg(Rn);
     llvm::Value *const offset12 = ConstantInt::get(*context, APInt(12, bit_sub<0, 12>(insn)));
     llvm::Value *const calc_addr = U ? builder->CreateAdd(Rn_val, offset12) : builder->CreateSub(Rn_val, offset12);
     llvm::Value *const dst_addr = P ? calc_addr : Rn_val;
     jcpu_assert(!B);
     if(L){//load
+        Value *const dat = gen_lw(dst_addr, gen_const(sizeof(target_ulong)), "ldr.val");
+        if(Rd_raw == arm_arch::REG_PC){
+            gen_set_reg_by_cond(arm_arch::REG_PNEXT_PC, cond, dat);
+            return true;
+        }
+        else{
+            gen_set_reg_by_cond(Rd_raw, cond, dat);
+            return false;
+        }
     }
     else{//store
+        gen_sw(dst_addr, gen_const(sizeof(target_ulong)), gen_get_reg(Rd, "str.val"), "str");
+        return false;
     }
     if(!(P ==1 && W == 0)){
         gen_set_reg(Rn, calc_addr);
