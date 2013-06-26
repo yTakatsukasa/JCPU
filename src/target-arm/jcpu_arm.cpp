@@ -7,7 +7,7 @@
 #include "gdbserver.h"
 #include "jcpu_arm.h"
 
-//#define JCPU_ARM_DEBUG 3
+#define JCPU_ARM_DEBUG 2
 
 
 namespace {
@@ -70,7 +70,7 @@ class arm_vm : public vm::jcpu_vm_base<arm_arch>{
     virtual void get_reg_value(std::vector<uint64_t> &)const JCPU_OVERRIDE;
     virtual void set_reg_value(unsigned int, uint64_t)JCPU_OVERRIDE;
 
-    llvm::Value *gen_get_reg_pc_check(reg_e r, const char *nm)const{
+    llvm::Value *gen_get_reg_pc_check(reg_e r, const char *nm = "")const{
         if(r == arm_arch::REG_PC){
             return gen_get_pc();
         }
@@ -89,7 +89,7 @@ class arm_vm : public vm::jcpu_vm_base<arm_arch>{
         }
     }
 
-    virtual bool disas_insn(virt_addr_t, int *)JCPU_OVERRIDE;
+    bool disas_insn(virt_addr_t, int *);
     bool disas_data_proc(target_ulong, int *);
     bool disas_data_imm(target_ulong, int *);
     bool disas_imm_ldst(target_ulong, int *);
@@ -99,12 +99,11 @@ class arm_vm : public vm::jcpu_vm_base<arm_arch>{
     bool disas_copro_ldst(target_ulong, int *);
     bool disas_swi(target_ulong, int *);
     bool disas_copro(target_ulong, int *);
-    void start_func(phys_addr_t);
-    llvm::Function * end_func();
+    virtual void start_func(phys_addr_t) JCPU_OVERRIDE;
     const basic_block *disas(virt_addr_t, int, const break_point *);
     virtual run_state_e step_exec() JCPU_OVERRIDE;
     phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);} //FIXME implement MMU
-    llvm::Value *gen_set_reg_by_cond(arm_arch::reg_e, unsigned int, llvm::Value *);
+    bool gen_set_reg_by_cond(arm_arch::reg_e, unsigned int, llvm::Value *, const char * = "");
     public:
     explicit arm_vm(jcpu_ext_if &);
     virtual run_state_e run() JCPU_OVERRIDE;
@@ -173,6 +172,7 @@ bool arm_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
             vm.builder->CreateCall(vm.mod->getFunction("jcpu_vm_dump_regs"));
 #endif
             vm.processing_pc.pop();
+vm.dump_ir();
         }
     } push_and_pop_pc(*this, pc_v, pc);
     const target_ulong insn = ext_ifs.mem_read(pc, sizeof(target_ulong));
@@ -225,7 +225,6 @@ const basic_block *arm_vm::disas(virt_addr_t start_pc_, int max_insn, const brea
             int insn_depth = 0;
             done = disas_insn(virt_addr_t(pc), &insn_depth);
             num_insn += insn_depth;
-dump_ir();
         }
     }
     else{
@@ -275,19 +274,6 @@ void arm_vm::start_func(phys_addr_t pc_p){
 #if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
     gen_set_reg(arm_arch::REG_PNEXT_PC, gen_const(0xFFFFFFFF), "prologue"); //poison value
 #endif
-}
-
-llvm::Function * arm_vm::end_func(){
-    llvm::Value *const pc = gen_get_reg(arm_arch::REG_PNEXT_PC, "epilogue");
-#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
-    builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
-#endif
-    builder->CreateRet(pc);
-    llvm::Function *const ret = cur_func;
-    cur_func = JCPU_NULLPTR;
-    cur_bb = JCPU_NULLPTR;
-
-    return ret;
 }
 
 gdb::gdb_target_if::run_state_e arm_vm::run(){
@@ -365,14 +351,13 @@ bool arm_vm::disas_data_imm(target_ulong insn, int *const insn_dpeth){
     const unsigned int cond = bit_sub<28, 4>(insn);
     const unsigned int op = bit_sub<21, 4>(insn);
     const bool S = bit_sub<20, 1>(insn);
-    llvm::Value *const Rn = ConstantInt::get(*context, APInt(4, bit_sub<16, 4>(insn)));
-    llvm::Value *const Rd = ConstantInt::get(*context, APInt(4, bit_sub<12, 4>(insn)));
+    const arm_arch::reg_e Rn_raw = static_cast<arm_arch::reg_e>(bit_sub<16, 4>(insn));
+    const arm_arch::reg_e Rd_raw = static_cast<arm_arch::reg_e>(bit_sub<12, 4>(insn));
     llvm::Value *const shifter = ConstantInt::get(*context, APInt(12, bit_sub<0, 12>(insn)));
     jcpu_assert(!S);
     switch(op){
         case 0x4://add 
-            gen_set_reg(Rd, builder->CreateAdd(Rn, shifter, "add"), "add");
-            return false;
+            return gen_set_reg_by_cond(Rd_raw, cond, builder->CreateAdd(gen_get_reg_pc_check(Rn_raw), shifter, "add"), "add");
         default:
             jcpu_assert(!"Not implemented yet");
     }
@@ -390,32 +375,25 @@ bool arm_vm::disas_imm_ldst(target_ulong insn, int *const insn_dpeth){
     const bool B = bit_sub<22, 1>(insn);
     const bool W = bit_sub<21, 1>(insn);
     const bool L = bit_sub<20, 1>(insn);
-    llvm::Value *const Rn = ConstantInt::get(*context, APInt(4, bit_sub<16, 4>(insn)));
+    const arm_arch::reg_e Rn_raw = static_cast<arm_arch::reg_e>(bit_sub<16, 4>(insn));
     const arm_arch::reg_e Rd_raw = static_cast<arm_arch::reg_e>(bit_sub<12, 4>(insn));
-    llvm::Value *const Rd = ConstantInt::get(*context, APInt(4, Rd_raw));
-    llvm::Value *const Rn_val = gen_get_reg(Rn);
+    llvm::Value *const Rn_val = gen_get_reg_pc_check(Rn_raw, "Rn");
     llvm::Value *const offset12 = ConstantInt::get(*context, APInt(12, bit_sub<0, 12>(insn)));
     llvm::Value *const calc_addr = U ? builder->CreateAdd(Rn_val, offset12) : builder->CreateSub(Rn_val, offset12);
     llvm::Value *const dst_addr = P ? calc_addr : Rn_val;
     jcpu_assert(!B);
+    bool is_jump = false;
     if(L){//load
         Value *const dat = gen_lw(dst_addr, gen_const(sizeof(target_ulong)), "ldr.val");
-        if(Rd_raw == arm_arch::REG_PC){
-            gen_set_reg_by_cond(arm_arch::REG_PNEXT_PC, cond, dat);
-            return true;
-        }
-        else{
-            gen_set_reg_by_cond(Rd_raw, cond, dat);
-            return false;
-        }
+        is_jump = gen_set_reg_by_cond(Rd_raw, cond, dat);
     }
     else{//store
-        gen_sw(dst_addr, gen_const(sizeof(target_ulong)), gen_get_reg(Rd, "str.val"), "str");
-        return false;
+        gen_sw(dst_addr, gen_const(sizeof(target_ulong)), gen_get_reg_pc_check(Rd_raw, "str.val"), "str");
     }
     if(!(P ==1 && W == 0)){
-        gen_set_reg(Rn, calc_addr);
+        is_jump |= gen_set_reg_by_cond(Rn_raw, cond, calc_addr);
     }
+    return is_jump;
     jcpu_assert(!"Not implemented yet");
     jcpu_assert(!"Never comes here");
     return false; //suppress warnings
@@ -475,12 +453,10 @@ bool arm_vm::disas_copro(target_ulong insn, int *const insn_dpeth){
 }
 
 
-llvm::Value * arm_vm::gen_set_reg_by_cond(arm_arch::reg_e reg, unsigned int cond, llvm::Value* val){
+bool arm_vm::gen_set_reg_by_cond(arm_arch::reg_e reg, unsigned int cond, llvm::Value* val, const char *nm){
     jcpu_arm_disas_assert(cond == 0xE);
-    return gen_set_reg(reg, val);
+    return gen_set_reg_pc_check(reg, val, nm);
 }
-
-
 
 
 

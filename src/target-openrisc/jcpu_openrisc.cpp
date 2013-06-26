@@ -74,21 +74,20 @@ class openrisc_vm : public vm::jcpu_vm_base<openrisc_arch>{
     virtual void get_reg_value(std::vector<uint64_t> &)const JCPU_OVERRIDE;
     virtual void set_reg_value(unsigned int, uint64_t)JCPU_OVERRIDE;
 
-    virtual bool disas_insn(virt_addr_t, int *)JCPU_OVERRIDE;
+    bool disas_insn(virt_addr_t, int *);
     bool disas_arith(target_ulong);
     bool disas_logical(target_ulong);
     bool disas_compare_immediate(target_ulong);
     bool disas_compare(target_ulong);
     bool disas_others(target_ulong, int *);
-    void start_func(phys_addr_t);
-    llvm::Function * end_func();
-    llvm::Value *gen_set_sr(sr_flag_e flag, llvm::Value *val, const char *mn = "")const{//val must be 0 or 1
+    virtual void start_func(phys_addr_t) JCPU_OVERRIDE;
+    void gen_set_sr(sr_flag_e flag, llvm::Value *val, const char *mn = "")const{//val must be 0 or 1
         using namespace llvm;
         Value *const sr = gen_get_reg(openrisc_arch::REG_SR, mn);
         Value *const drop_mask = gen_const(~(static_cast<target_ulong>(1) << flag));
         Value *const shifted_val = builder->CreateShl(builder->CreateZExt(val, get_reg_type()), flag, mn);
         Value *const new_sr = builder->CreateOr(builder->CreateAnd(sr, drop_mask, mn), shifted_val, mn);
-        return gen_set_reg(openrisc_arch::REG_SR, new_sr, mn);
+        gen_set_reg(openrisc_arch::REG_SR, new_sr, mn);
     }
     const basic_block *disas(virt_addr_t, int, const break_point *);
     virtual run_state_e step_exec() JCPU_OVERRIDE;
@@ -239,9 +238,9 @@ bool openrisc_vm::disas_arith(target_ulong insn){
     using namespace llvm;
     const target_ulong op = bit_sub<0, 4>(insn);
     const target_ulong op2 = bit_sub<8, 2>(insn);
-    ConstantInt *const rD = ConstantInt::get(*context, APInt(5, bit_sub<21, 5>(insn)));
-    ConstantInt *const rA = ConstantInt::get(*context, APInt(5, bit_sub<16, 5>(insn)));
-    ConstantInt *const rB = ConstantInt::get(*context, APInt(5, bit_sub<11, 5>(insn)));
+    const openrisc_arch::reg_e rD = static_cast<openrisc_arch::reg_e>(bit_sub<21, 5>(insn));
+    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
+    const openrisc_arch::reg_e rB = static_cast<openrisc_arch::reg_e>(bit_sub<11, 5>(insn));
     if(op2 == 0){
         switch(op){
             case 0x00://l.add rD = aA + rB, SR[CY] = unsigned overflow(carry), SR[OV] = signed overflow
@@ -288,8 +287,9 @@ bool openrisc_vm::disas_arith(target_ulong insn){
 bool openrisc_vm::disas_logical(target_ulong insn){
     using namespace llvm;
     const target_ulong op = bit_sub<6, 2>(insn);
-    ConstantInt *const rD = ConstantInt::get(*context, APInt(5, bit_sub<21, 5>(insn)));
-    ConstantInt *const rA = ConstantInt::get(*context, APInt(5, bit_sub<16, 5>(insn)));
+    const openrisc_arch::reg_e rD = static_cast<openrisc_arch::reg_e>(bit_sub<21, 5>(insn));
+    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
+
     //ConstantInt *const L_64 = ConstantInt::get(*context, APInt(6, bit_sub<0, 6>(insn)));
     ConstantInt *const L_32 = ConstantInt::get(*context, APInt(5, bit_sub<0, 5>(insn)));
     switch(op){
@@ -312,7 +312,7 @@ bool openrisc_vm::disas_logical(target_ulong insn){
 bool openrisc_vm::disas_compare_immediate(target_ulong insn){
     using namespace llvm;
     const target_ulong op0 = bit_sub<21, 5>(insn);
-    ConstantInt *const rA = ConstantInt::get(*context, APInt(5, bit_sub<16, 5>(insn)));
+    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
     ConstantInt *const I16 = ConstantInt::get(*context, APInt(16, bit_sub<0, 16>(insn)));
     Value *const I16s = builder->CreateSExt(I16, get_reg_type());
 
@@ -351,8 +351,8 @@ bool openrisc_vm::disas_compare_immediate(target_ulong insn){
 bool openrisc_vm::disas_compare(target_ulong insn){
     using namespace llvm;
     const target_ulong op0 = bit_sub<21, 5>(insn);
-    ConstantInt *const rA = ConstantInt::get(*context, APInt(5, bit_sub<16, 5>(insn)));
-    ConstantInt *const rB = ConstantInt::get(*context, APInt(5, bit_sub<11, 5>(insn)));
+    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
+    const openrisc_arch::reg_e rB = static_cast<openrisc_arch::reg_e>(bit_sub<11, 5>(insn));
 
     switch(op0){
         case 0x00: //l.sfeq SR[F] = rA == rB
@@ -392,9 +392,9 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
     using namespace llvm;
     const target_ulong op0 = bit_sub<26, 6>(insn);
     const target_ulong op1 = bit_sub<24, 2>(insn);
-    ConstantInt *const rD = ConstantInt::get(*context, APInt(5, bit_sub<21, 5>(insn)));
-    ConstantInt *const rA = ConstantInt::get(*context, APInt(5, bit_sub<16, 5>(insn)));
-    ConstantInt *const rB = ConstantInt::get(*context, APInt(5, bit_sub<11, 5>(insn)));
+    const openrisc_arch::reg_e rD = static_cast<openrisc_arch::reg_e>(bit_sub<21, 5>(insn));
+    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
+    const openrisc_arch::reg_e rB = static_cast<openrisc_arch::reg_e>(bit_sub<11, 5>(insn));
     //const target_ulong lo6 = bit_sub<5, 6>(insn);
     //const target_ulong k5 = bit_sub<0, 5>(insn);
     ConstantInt *const lo16 = ConstantInt::get(*context, APInt(16, bit_sub<0, 16>(insn)));
@@ -506,6 +506,9 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
         case 0x2A: //l.ori (set rD (or rA (and lo16 65535)))
             gen_set_reg(rD, builder->CreateOr(gen_get_reg(rA), builder->CreateZExt(lo16, get_reg_type())));
             return false;
+        case 0x2B: //l.xori (set rD (xor rA sext(lo16 )))
+            gen_set_reg(rD, builder->CreateXor(gen_get_reg(rA), builder->CreateSExt(lo16, get_reg_type())));
+            return false;
         case 0x2C: //l.muli
             {
                 //Value *const mul = builder->CreateMul(gen_get_reg(rA), builder->CreateSExt(lo16, builder->getInt64Ty()));
@@ -564,19 +567,6 @@ void openrisc_vm::start_func(phys_addr_t pc_p){
 #if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
     gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_const(0xFFFFFFFF), "prologue"); //poison value
 #endif
-}
-
-llvm::Function * openrisc_vm::end_func(){
-    llvm::Value *const pc = gen_get_reg(openrisc_arch::REG_PNEXT_PC, "epilogue");
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
-    builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
-#endif
-    builder->CreateRet(pc);
-    llvm::Function *const ret = cur_func;
-    cur_func = JCPU_NULLPTR;
-    cur_bb = JCPU_NULLPTR;
-
-    return ret;
 }
 
 gdb::gdb_target_if::run_state_e openrisc_vm::run(){
