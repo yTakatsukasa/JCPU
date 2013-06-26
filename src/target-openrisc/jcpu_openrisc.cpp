@@ -156,11 +156,6 @@ bool openrisc_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
             vm.processing_pc.push(std::make_pair(pc_v, pc_p));
         }
         ~push_and_pop_pc(){
-
-            vm.gen_set_reg(openrisc_arch::REG_PC, vm.gen_const(vm.processing_pc.top().first + 4));
-#if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
-            //vm.gen_set_reg(openrisc_arch::REG_PC, vm.gen_const(vm.processing_pc.top().second));
-#endif
             vm.processing_pc.pop();
         }
     } push_and_pop_pc(*this, pc_v, pc);
@@ -223,6 +218,7 @@ const basic_block *openrisc_vm::disas(virt_addr_t start_pc_, int max_insn, const
         const bool done = disas_insn(start_pc_, &insn_depth);
         num_insn += insn_depth;
         pc = start_pc + (done ? 8 : 4);
+        gen_set_reg(openrisc_arch::REG_PC, gen_const(pc));
         if(done){
             gen_set_reg(openrisc_arch::REG_PC, gen_get_reg(openrisc_arch::REG_PNEXT_PC));
         }
