@@ -70,6 +70,25 @@ class arm_vm : public vm::jcpu_vm_base<arm_arch>{
     virtual void get_reg_value(std::vector<uint64_t> &)const JCPU_OVERRIDE;
     virtual void set_reg_value(unsigned int, uint64_t)JCPU_OVERRIDE;
 
+    llvm::Value *gen_get_reg_pc_check(reg_e r, const char *nm)const{
+        if(r == arm_arch::REG_PC){
+            return gen_get_pc();
+        }
+        else{
+            return gen_get_reg(r, nm);
+        }
+    }
+    bool gen_set_reg_pc_check(reg_e r, llvm::Value *val, const char *nm)const{
+        if(r == arm_arch::REG_PC){
+            gen_set_reg(arm_arch::REG_PNEXT_PC, val, nm);
+            return true;
+        }
+        else{
+            gen_set_reg(r, val, nm);
+            return false;
+        }
+    }
+
     virtual bool disas_insn(virt_addr_t, int *)JCPU_OVERRIDE;
     bool disas_data_proc(target_ulong, int *);
     bool disas_data_imm(target_ulong, int *);
@@ -129,15 +148,15 @@ arm_vm::arm_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<arm_arch>(ifs)
 
 void arm_vm::get_reg_value(std::vector<uint64_t> &regs)const{
     regs.clear();
-    for(unsigned int i = 0; i < 32; ++i){
+    for(unsigned int i = 0; i < arm_arch::NUM_REGS; ++i){
         regs.push_back(get_reg_func(i));
     }
     //regs.push_back(get_reg_func(arm_arch::REG_PC));
-    regs.push_back(get_reg_func(arm_arch::REG_PNEXT_PC));
+    //regs.push_back(get_reg_func(arm_arch::REG_PNEXT_PC));
 }
 
 void arm_vm::set_reg_value(unsigned int reg_idx, uint64_t reg_val){
-    jcpu_assert(reg_idx < 32 + 1);
+    jcpu_assert(reg_idx < arm_arch::NUM_REGS);
     set_reg_func(reg_idx, reg_val);
 }
 
@@ -150,11 +169,6 @@ bool arm_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
             vm.processing_pc.push(std::make_pair(pc_v, pc_p));
         }
         ~push_and_pop_pc(){
-
-            vm.gen_set_reg(arm_arch::REG_PC, vm.gen_const(vm.processing_pc.top().first + 4));
-#if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
-            //vm.gen_set_reg(arm_arch::REG_PC, vm.gen_const(vm.processing_pc.top().second));
-#endif
 #if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 2
             vm.builder->CreateCall(vm.mod->getFunction("jcpu_vm_dump_regs"));
 #endif
@@ -220,6 +234,7 @@ dump_ir();
         const bool done = disas_insn(start_pc_, &insn_depth);
         num_insn += insn_depth;
         pc = start_pc + (done ? 8 : 4);
+        gen_set_reg(arm_arch::REG_PC, gen_const(pc));
         if(done){
             gen_set_reg(arm_arch::REG_PC, gen_get_reg(arm_arch::REG_PNEXT_PC));
         }
