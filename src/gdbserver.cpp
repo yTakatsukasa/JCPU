@@ -173,6 +173,7 @@ gdb_server::impl::impl(unsigned int port) : port(port)
 }
 
 void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
+    std::cerr << "Listening at localhost:" << std::dec << port_num << std::endl;
     char buf[32];
     std::sprintf(buf, "%d", port_num);
     clx::tcp::acceptor s(clx::tcp::port(buf));
