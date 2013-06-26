@@ -32,7 +32,12 @@ class dummy_mem : public jcpu::jcpu_ext_if{
     virtual uint64_t mem_read(uint64_t addr, unsigned int size)override{
         if(addr >= tmp_mem.size() * sizeof(tmp_mem[0])){
             std::cerr << "Address " << std::hex << addr << " is out of bound" << std::endl;
-            abort();
+            if(addr == 0xFFFFFFFF){//GDB?
+                return 0;
+            }
+            else{
+                abort();
+            }
         }
         uint64_t v = tmp_mem[addr / 4];
         if(size == 1){
@@ -52,6 +57,13 @@ class dummy_mem : public jcpu::jcpu_ext_if{
                 default:abort();
             }
             v &= 0xFFFF;
+        }
+        else if(size == 8){
+            v = 0;
+            for(int i = 0; i < 8; ++i){
+                v <<= 8;
+                v |= mem_read(addr + i, 1);
+            }
         }
 #if 0
         std::cout << "mem_read(" << std::hex << addr << ", 0x" << size << ")" << " " << v << std::endl;
