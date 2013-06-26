@@ -256,6 +256,9 @@ bool openrisc_vm::disas_arith(target_ulong insn){
                 gen_set_reg(rD, builder->CreateSub(gen_get_reg(rA), gen_get_reg(rB), "l.sub"));
                 //FIXME overflow
                 return false;
+            case 0x03: //l.and rD = rA | rB
+                gen_set_reg(rD, builder->CreateAnd(gen_get_reg(rA, "l.or_A"), gen_get_reg(rB, "l.or_B"), "l.or"), "l.or_D");
+                return false;
             case 0x04: //l.or rD = rA | rB
                 gen_set_reg(rD, builder->CreateOr(gen_get_reg(rA, "l.or_A"), gen_get_reg(rB, "l.or_B"), "l.or"), "l.or_D");
                 return false;
@@ -336,6 +339,9 @@ bool openrisc_vm::disas_compare_immediate(target_ulong insn){
         case 0x0B: //l.sfgesi SR[F] = rA >= sext(I16)
             gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSGE(gen_get_reg(rA), I16s, "l.sfgesi"), "l.sfgesi");
             return false;
+        case 0x0C: //l.sfltsi SR[F] = rA < sext(I16)
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSLT(gen_get_reg(rA), I16s, "l.sfltsi"), "l.sfltsi");
+            return false;
         case 0x0D: //l.sflesi SR[F] = rA <= sext(I16)
             gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSLE(gen_get_reg(rA, "l.sflesi_A"), I16s, "l.sflesi_I"), "l.sflesi");
             return false;
@@ -364,6 +370,9 @@ bool openrisc_vm::disas_compare(target_ulong insn){
             return false;
         case 0x03: //l.sfgeu SR[F] <= rA >= rB
             gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpUGE(gen_get_reg(rA, "l.sfgeu_A"), gen_get_reg(rB, "l.sfgeu_B"), "l.sfgeu"), "l.sfgeu_SRF");
+            return false;
+        case 0x04: //l.sfltu SR[F} <= rA < rB
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpULT(gen_get_reg(rA, "l.sfltu_A"), gen_get_reg(rB, "l.sfltu_B"), "l.sfltu"), "l.sfltu_SRF");
             return false;
         case 0x05: //l.sfleu SR[F] <= rA <= rB
             gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpULE(gen_get_reg(rA, "l.sfleu_A"), gen_get_reg(rB, "l.sfleu_B"), "l.sfleu"), "l.sfleu_SRF");
