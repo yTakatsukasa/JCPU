@@ -3,7 +3,7 @@
 
 #include <llvm/Config/llvm-config.h>
 
-#if LLVM_VERSION_MAJOR >= 3 || LLVM_VERSION_MINOR >= 3
+#if LLVM_VERSION_MAJOR > 3 || LLVM_VERSION_MINOR >= 3
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Instructions.h> //LoadInst
 #include <llvm/IR/IRBuilder.h> 
