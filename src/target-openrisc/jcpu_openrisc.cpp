@@ -476,7 +476,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
         case 0x21: //l.lwz rD = (rA + sext(I))
             {
                 Value *const addr = builder->CreateAdd(gen_get_reg(rA), builder->CreateSExt(I11, get_reg_type()));
-                Value *const dat = gen_lw(addr, gen_const(sizeof(target_ulong)));
+                Value *const dat = builder->CreateTrunc(gen_lw(addr, gen_const(sizeof(target_ulong))), builder->getInt32Ty());
                 gen_set_reg(rD, dat);
             }
             return false;
@@ -578,6 +578,42 @@ gdb::gdb_target_if::run_state_e openrisc_vm::run(){
         if(nearest && nearest->get_pc() == pc){
             return RUN_STAT_BREAK;
         }
+#if 0
+std::cerr << "PC=" << std::hex << std::setw(8) << std::setfill('0') << pc << std::endl;
+std::cerr
+    << "R00=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(0)
+    << " R01=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(1)
+    << " R02=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(2)
+    << " R03=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(3) << '\n'
+    << "R04=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(4)
+    << " R05=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(5)
+    << " R06=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(6)
+    << " R07=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(7) << '\n'
+    << "R08=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(8)
+    << " R09=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(9)
+    << " R10=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(10)
+    << " R11=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(11) << '\n'
+    << "R12=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(12)
+    << " R13=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(13)
+    << " R14=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(14)
+    << " R15=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(15) << '\n'
+    << "R16=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(16)
+    << " R17=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(17)
+    << " R18=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(18)
+    << " R19=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(19) << '\n'
+    << "R20=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(20)
+    << " R21=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(21)
+    << " R22=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(22)
+    << " R23=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(23) << '\n'
+    << "R24=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(24)
+    << " R25=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(25)
+    << " R26=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(26)
+    << " R27=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(27) << '\n'
+    << "R28=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(28)
+    << " R29=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(29)
+    << " R30=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(30)
+    << " R31=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(31) << std::endl;
+#endif
         pc = bb->exec();
 #if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
         dump_regs();
