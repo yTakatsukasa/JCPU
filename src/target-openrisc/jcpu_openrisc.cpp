@@ -238,6 +238,7 @@ bool openrisc_vm::disas_arith(target_ulong insn){
     using namespace llvm;
     const target_ulong op = bit_sub<0, 4>(insn);
     const target_ulong op2 = bit_sub<8, 2>(insn);
+    const target_ulong op3 = bit_sub<6, 4>(insn);
     const openrisc_arch::reg_e rD = static_cast<openrisc_arch::reg_e>(bit_sub<21, 5>(insn));
     const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
     const openrisc_arch::reg_e rB = static_cast<openrisc_arch::reg_e>(bit_sub<11, 5>(insn));
@@ -257,11 +258,19 @@ bool openrisc_vm::disas_arith(target_ulong insn){
             case 0x04: //l.or rD = rA | rB
                 gen_set_reg(rD, builder->CreateOr(gen_get_reg(rA, "l.or_A"), gen_get_reg(rB, "l.or_B"), "l.or"), "l.or_D");
                 return false;
-            case 0x08: //l.srl rD = rA >> rB[4:0]
-                {
+            case 0x08:
+                if(op3 == 0x00){//l.sll rD = rA << rB[4:0]
+                    Value *const rega = gen_get_reg(rA, "l.sll_A");
+                    Value *const regb5 = builder->CreateTrunc(gen_get_reg(rB, "l.sll_B"), IntegerType::get(*context, 5), "l.sll_B5");
+                    gen_set_reg(rD, builder->CreateShl(rega, regb5, "l.sll"), "l.sll_D");
+                }
+                else if(op3 == 0x01){//l.srl rD = rA >> rB[4:0]
                     Value *const rega = gen_get_reg(rA, "l.srl_A");
                     Value *const regb5 = builder->CreateTrunc(gen_get_reg(rB, "l.srl_B"), IntegerType::get(*context, 5), "l.srl_B5");
                     gen_set_reg(rD, builder->CreateLShr(rega, regb5, "l.srl"), "l.srl_D");
+                }
+                else{
+                    jcpu_or_disas_assert(!"Not implemented yet");
                 }
                 return false;
             default:
@@ -615,6 +624,7 @@ std::cerr
     << " R31=" << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(31) << std::endl;
 #endif
         pc = bb->exec();
+
 #if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
         dump_regs();
 #endif
