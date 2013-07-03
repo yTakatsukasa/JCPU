@@ -242,6 +242,7 @@ const basic_block *arm_vm::disas(virt_addr_t start_pc_, int max_insn, const brea
         }
     }
     llvm::Function *const f = end_func();
+dump_ir();
     basic_block *const bb = new basic_block(start_pc, phys_addr_t(pc - 4), f, ee, num_insn);
     bb_man.add(bb);
 #if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
@@ -384,11 +385,11 @@ bool arm_vm::disas_imm_ldst(target_ulong insn, int *const insn_dpeth){
     jcpu_assert(!B);
     bool is_jump = false;
     if(L){//load
-        Value *const dat = gen_lw(dst_addr, gen_const(sizeof(target_ulong)), "ldr.val");
+        Value *const dat = gen_lw(dst_addr, sizeof(target_ulong), "ldr.val");
         is_jump = gen_set_reg_by_cond(Rd_raw, cond, dat);
     }
     else{//store
-        gen_sw(dst_addr, gen_const(sizeof(target_ulong)), gen_get_reg_pc_check(Rd_raw, "str.val"), "str");
+        gen_sw(dst_addr, sizeof(target_ulong), gen_get_reg_pc_check(Rd_raw, "str.val"), "str");
     }
     if(!(P ==1 && W == 0)){
         is_jump |= gen_set_reg_by_cond(Rn_raw, cond, calc_addr);

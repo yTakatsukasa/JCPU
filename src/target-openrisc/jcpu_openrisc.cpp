@@ -485,7 +485,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
         case 0x21: //l.lwz rD = (rA + sext(I))
             {
                 Value *const addr = builder->CreateAdd(gen_get_reg(rA), builder->CreateSExt(I11, get_reg_type()));
-                Value *const dat = builder->CreateTrunc(gen_lw(addr, gen_const(sizeof(target_ulong))), builder->getInt32Ty());
+                Value *const dat = gen_lw(addr, sizeof(target_ulong));
                 gen_set_reg(rD, dat);
             }
             return false;
@@ -493,7 +493,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
             {
                 static const char *const mn = "l.lbz";
                 Value *const addr = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(lo16, get_reg_type(), mn), mn);
-                Value *const dat = builder->CreateTrunc(gen_lw(addr, gen_const(1), mn), builder->getInt8Ty(), mn);
+                Value *const dat = gen_lw(addr, 1, mn);
                 gen_set_reg(rD, builder->CreateZExt(dat, get_reg_type(), mn), mn);
             }
             return false;
@@ -501,7 +501,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
             {
                 static const char *const mn = "l.lbs";
                 Value *const addr = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(lo16, get_reg_type(), mn), mn);
-                Value *const dat = builder->CreateTrunc(gen_lw(addr, gen_const(1), mn), builder->getInt8Ty(), mn);
+                Value *const dat = gen_lw(addr, 1, mn);
                 gen_set_reg(rD, builder->CreateSExt(dat, get_reg_type(), mn), mn);
             }
             return false;
@@ -536,14 +536,14 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
             {
                 static const char *const mn = "l.sw";
                 Value *const EA = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(I, get_reg_type(), mn), mn);
-                gen_sw(EA, gen_const(sizeof(target_ulong)), gen_get_reg(rB, mn), mn);
+                gen_sw(EA, sizeof(target_ulong), gen_get_reg(rB, mn), mn);
             }
             return false;
         case 0x36: //l.sb 
             {
                 static const char *const mn = "l.sb";
                 Value *const EA = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(I, get_reg_type(), mn), mn);
-                gen_sw(EA, gen_const(1), gen_get_reg(rB, mn), mn);
+                gen_sw(EA, 1, gen_get_reg(rB, mn), mn);
             }
             return false;
  

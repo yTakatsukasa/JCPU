@@ -243,8 +243,8 @@ class jcpu_vm_base : public ::jcpu::vm::jcpu_vm_if, public ::jcpu::gdb::gdb_targ
     llvm::ConstantInt * gen_const(target_ulong val)const;
     llvm::ConstantInt * gen_get_pc()const;
     llvm::Value *gen_cond_code(llvm::Value *cond, llvm::Value *t, llvm::Value *f, const char *mn = "")const;//cond must be 1 or 0
-    llvm::CallInst * gen_sw(llvm::Value *addr, llvm::Value *len, llvm::Value *val, const char *mn = "")const;
-    llvm::CallInst * gen_lw(llvm::Value *addr, llvm::Value *len, const char *mn = "")const;
+    llvm::CallInst * gen_sw(llvm::Value *addr, unsigned int, llvm::Value *val, const char *mn = "")const;
+    llvm::Value * gen_lw(llvm::Value *addr, unsigned int, const char *mn = "")const;
 
     //gdb_target_if
     virtual unsigned int get_reg_width()const JCPU_OVERRIDE;
@@ -335,13 +335,25 @@ llvm::Value *jcpu_vm_base<ARCH>::gen_cond_code(llvm::Value *cond, llvm::Value *t
 }
 
 template<typename ARCH>
-llvm::CallInst * jcpu_vm_base<ARCH>::gen_sw(llvm::Value *addr, llvm::Value *len, llvm::Value *val, const char *mn)const{
-    return builder->CreateCall3(mod->getFunction("helper_mem_write"), addr, len, val, mn);
+llvm::CallInst * jcpu_vm_base<ARCH>::gen_sw(llvm::Value *addr, unsigned int len, llvm::Value *val, const char *mn)const{
+    jcpu_assert(len == 1 || len == 2 || len == 4 || len == 8);
+    llvm::Value *const len_llvm = gen_const(len);
+    return builder->CreateCall3(mod->getFunction("helper_mem_write"), addr, len_llvm, val, mn);
 }
 
 template<typename ARCH>
-llvm::CallInst * jcpu_vm_base<ARCH>::gen_lw(llvm::Value *addr, llvm::Value *len, const char *mn)const{
-    return builder->CreateCall2(mod->getFunction("helper_mem_read"), addr, len, mn);
+llvm::Value * jcpu_vm_base<ARCH>::gen_lw(llvm::Value *addr, unsigned int len, const char *mn)const{
+    jcpu_assert(len == 1 || len == 2 || len == 4 || len == 8);
+    llvm::Value *const len_llvm = gen_const(len);
+    llvm::CallInst *const cinst = builder->CreateCall2(mod->getFunction("helper_mem_read"), addr, len_llvm, mn);
+    switch(len){
+        case 1: return builder->CreateTrunc(cinst, builder->getInt8Ty());
+        case 2: return builder->CreateTrunc(cinst, builder->getInt16Ty());
+        case 4: return builder->CreateTrunc(cinst, builder->getInt32Ty());
+        case 8: return builder->CreateTrunc(cinst, builder->getInt64Ty());
+        default: jcpu_assert(!"Never comes here");
+    }
+    return NULL;
 }
 
 
