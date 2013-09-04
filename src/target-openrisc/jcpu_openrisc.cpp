@@ -46,7 +46,7 @@ struct openrisc_arch{
         REG_GR20, REG_GR21, REG_GR22, REG_GR23,
         REG_GR24, REG_GR25, REG_GR26, REG_GR27,
         REG_GR28, REG_GR29, REG_GR30, REG_GR31,
-        REG_PC, REG_SR, REG_CPUCFGR, REG_PNEXT_PC, NUM_REGS
+        REG_PC, REG_SR, REG_CPUCFGR, REG_EPCR0, REG_PNEXT_PC, NUM_REGS
     };
 
     enum sr_flag_e{
@@ -74,6 +74,8 @@ class openrisc_vm : public vm::jcpu_vm_base<openrisc_arch>{
     virtual void get_reg_value(std::vector<uint64_t> &)const JCPU_OVERRIDE;
     virtual void set_reg_value(unsigned int, uint64_t)JCPU_OVERRIDE;
 
+    bool irq_status;
+
     bool disas_insn(virt_addr_t, int *);
     bool disas_arith(target_ulong);
     bool disas_logical(target_ulong);
@@ -96,6 +98,8 @@ class openrisc_vm : public vm::jcpu_vm_base<openrisc_arch>{
     explicit openrisc_vm(jcpu_ext_if &);
     virtual run_state_e run() JCPU_OVERRIDE;
     virtual void dump_regs()const JCPU_OVERRIDE;
+    void reset();
+    void interrupt(int, bool);
 };
 
 openrisc_vm::openrisc_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<openrisc_arch>(ifs) 
@@ -191,7 +195,8 @@ bool openrisc_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
 #if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 2
     builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
 #endif
-
+    jcpu_assert(!"Never comes here");
+    return false;//suppress warning
 }
 
 const basic_block *openrisc_vm::disas(virt_addr_t start_pc_, int max_insn, const break_point *const bp){
@@ -476,13 +481,30 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
                 jcpu_or_disas_assert(!"Not implemented yet");
             }
             break;
+        case 0x09: //l.rfe PC <= PRCR, SR <= ESR
+            {
+                static const char *const mn = "l.rfe";
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(openrisc_arch::REG_EPCR0, mn), mn);
+                gen_set_sr(openrisc_arch::SR_IEE, ConstantInt::get(*context, APInt(32, 0)));
+            }
+            return true;
         case 0x11: //l.jr PC = rB
             {
                 static const char *const mn = "l.jr";
                 gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(rB, mn), mn);
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 jcpu_or_disas_assert(!ret);
-                return true;
+            }
+            return true;
+        case 0x12: //l.jalr PC = rB, LR <= PC + 8
+            {
+                static const char *const mn = "l.jalr";
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(rB, mn), mn);
+                const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
+                jcpu_or_disas_assert(!ret);
+                //gen_set_reg(openrisc_arch::REG_LR, processing_pc.top().first + static_cast<virt_addr_t>(8), insn_depth); //delay slot
+                Value *const nd_bit = builder->CreateAnd(builder->CreateLShr(gen_get_reg(openrisc_arch::REG_CPUCFGR), gen_const(openrisc_arch::CPUCFGR_ND)), gen_const(1));
+                gen_set_reg(openrisc_arch::REG_LR, builder->CreateAdd(gen_get_pc(), gen_cond_code(nd_bit, gen_const(4), gen_const(8))));//check spr
             }
             return true;
         case 0x21: //l.lwz rD = (rA + sext(I))
@@ -549,8 +571,16 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
                 gen_sw(EA, 1, gen_get_reg(rB, mn), mn);
             }
             return false;
+        case 0x37: //l.sh
+            {
+                static const char *const mn = "l.sh";
+                Value *const EA = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(I, get_reg_type(), mn), mn);
+                gen_sw(EA, 2, gen_get_reg(rB, mn), mn);
+            }
+            return false;
  
         default:
+            std::cerr << "Insn:" << std::hex << insn << std::endl;
             jcpu_or_disas_assert(!"Not implemented yet");
             break;
     }
@@ -632,6 +662,13 @@ std::cerr
         dump_regs();
 #endif
         total_icount += bb->get_icount();
+        const target_ulong sr = get_reg_func(openrisc_arch::REG_SR);
+        if(irq_status && (sr & (1U << openrisc_arch::SR_IEE)) == 0){//jump to exception handler
+            set_reg_func(openrisc_arch::REG_EPCR0, get_reg_func(openrisc_arch::REG_PNEXT_PC));
+            set_reg_func(openrisc_arch::REG_PNEXT_PC, 0x800);
+            set_reg_func(openrisc_arch::REG_SR, sr | (1U << openrisc_arch::SR_IEE));
+            pc = virt_addr_t(0x800);
+        }
     }
     jcpu_assert(!"Never comes here");
     return RUN_STAT_NORMAL;
@@ -648,6 +685,7 @@ gdb::gdb_target_if::run_state_e openrisc_vm::step_exec(){
     dump_regs();
 #endif
     total_icount += bb->get_icount();
+    jcpu_assert(irq_status == false);//Not implemented yet
     return (nearest && nearest->get_pc() == pc) ? RUN_STAT_BREAK : RUN_STAT_NORMAL;
 }
 
@@ -668,6 +706,9 @@ void openrisc_vm::dump_regs()const{
         else if(i == openrisc_arch::REG_CPUCFGR){
             std::cout << "cpucfgr";
         }
+        else if(i == openrisc_arch::REG_EPCR0){
+            std::cout << "EPCR0:";
+        }
         else{assert(!"Unknown register");}
         std::cout << std::hex << std::setw(8) << std::setfill('0') << get_reg_func(i);
         if((i & 3) != 3) std::cout << "  ";
@@ -675,6 +716,16 @@ void openrisc_vm::dump_regs()const{
     }
     std::cout << std::endl;
 }
+
+void openrisc_vm::interrupt(int irq_id, bool enable){
+    jcpu_assert(irq_id == 0);
+    irq_status = enable;
+}
+
+void openrisc_vm::reset(){
+    irq_status = false;
+}
+
 
 openrisc::openrisc(const char *model) : jcpu(), vm(JCPU_NULLPTR){
 }
@@ -684,14 +735,17 @@ openrisc::~openrisc(){
 }
 
 void openrisc::interrupt(int irq_id, bool enable){
+    if(vm) vm->interrupt(irq_id, enable);
 }
 
 void openrisc::reset(bool reset_on){
+    if(vm) vm->reset();
 }
 
 void openrisc::run(run_option_e opt){
     if(!vm){
-        vm= new openrisc_vm(*ext_ifs);
+        vm = new openrisc_vm(*ext_ifs);
+        vm->reset();
     }
     if(opt == RUN_OPTION_NORMAL){
         vm->run();
