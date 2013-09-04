@@ -31,7 +31,7 @@ class general_reg_cache{
     static const size_t num_regs =  ARCH::NUM_REGS;
     std::pair<llvm::Value *, bool> regs[num_regs];//latest_reg, is_dirty
     void clear(){
-        for(size_t i = 0; i < num_regs; ++i){regs[i] = std::make_pair(JCPU_NULLPTR, false);}
+        for(size_t i = 0; i < num_regs; ++i){regs[i] = std::pair<llvm::Value *, bool>(JCPU_NULLPTR, false);}
     }
     public:
     general_reg_cache(){clear();}
@@ -51,7 +51,7 @@ class general_reg_cache{
             if(regs[i].second){//dirty
                 f(static_cast<typename ARCH::reg_e>(i), regs[i].first);
             }
-            regs[i] = std::make_pair(JCPU_NULLPTR, false);
+            regs[i] = std::pair<llvm::Value *, bool>(JCPU_NULLPTR, false);
         }
     }
 
