@@ -28,6 +28,7 @@ class jcpu{
     void set_ext_interface(jcpu_ext_if *);
     virtual uint64_t get_total_insn_count()const = 0;
     static jcpu * create(const char *, const char *);
+    static void initialize();
     
 };
 

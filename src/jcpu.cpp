@@ -28,5 +28,8 @@ jcpu * jcpu::create(const char*arch_, const char *model){
     }
 }
 
+void jcpu::initialize(){
+    llvm::InitializeNativeTarget();
+}
 
 } //end of namespace jcpu
