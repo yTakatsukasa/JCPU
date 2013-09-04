@@ -1,3 +1,5 @@
+#include <numeric>
+#include <cstdio>
 #include "clx/tcp.h"
 #include "jcpu_internal.h"
 #include "gdbserver.h"
