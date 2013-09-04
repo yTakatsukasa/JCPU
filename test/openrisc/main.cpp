@@ -11,6 +11,11 @@
 //#include "bubblesort.h"
 //#include "bubblesort100.h"
 //#include "bubblesort100_check.h"
+#if __cplusplus >= 201103L
+#define MAIN_CPP_OVERRIDE override
+#else
+#define MAIN_CPP_OVERRIDE
+#endif
 
 class dummy_mem : public jcpu::jcpu_ext_if{
     const jcpu::jcpu &jcpu_if;
@@ -29,7 +34,7 @@ class dummy_mem : public jcpu::jcpu_ext_if{
         std::fclose(fp);
 #endif
     }
-    virtual uint64_t mem_read(uint64_t addr, unsigned int size)override{
+    virtual uint64_t mem_read(uint64_t addr, unsigned int size)MAIN_CPP_OVERRIDE{
         if(addr >= tmp_mem.size() * sizeof(tmp_mem[0])){
             std::cerr << "Address " << std::hex << addr << " is out of bound" << std::endl;
             if(addr == 0xFFFFFFFF){//GDB?
@@ -70,7 +75,7 @@ class dummy_mem : public jcpu::jcpu_ext_if{
 #endif
         return v;
     }
-    virtual void mem_write(uint64_t addr, unsigned int size, uint64_t val)override{
+    virtual void mem_write(uint64_t addr, unsigned int size, uint64_t val)MAIN_CPP_OVERRIDE{
 #if 0
         std::cout << "mem_write(" << std::hex << addr
             << ", 0x" << size
@@ -113,10 +118,10 @@ class dummy_mem : public jcpu::jcpu_ext_if{
             abort();
         }
     }
-    virtual uint64_t mem_read_dbg(uint64_t addr, unsigned int size) override{
+    virtual uint64_t mem_read_dbg(uint64_t addr, unsigned int size) MAIN_CPP_OVERRIDE{
         return mem_read(addr, size);
     }
-    virtual void mem_write_dbg(uint64_t addr, unsigned int size, uint64_t val)override{
+    virtual void mem_write_dbg(uint64_t addr, unsigned int size, uint64_t val)MAIN_CPP_OVERRIDE{
         mem_write(addr, size, val);
     }
 };
