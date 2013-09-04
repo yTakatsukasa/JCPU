@@ -382,6 +382,9 @@ bool openrisc_vm::disas_compare(target_ulong insn){
         case 0x05: //l.sfleu SR[F] <= rA <= rB
             gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpULE(gen_get_reg(rA, "l.sfleu_A"), gen_get_reg(rB, "l.sfleu_B"), "l.sfleu"), "l.sfleu_SRF");
             return false;
+        case 0x0A: //l.sfgts SR[F] <= rA > rB
+            gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSGT(gen_get_reg(rA), gen_get_reg(rB)));
+            return false;
         case 0x0B: //l.sfges SR[F] <= rA >= rB
             gen_set_sr(openrisc_arch::SR_F, builder->CreateICmpSGE(gen_get_reg(rA), gen_get_reg(rB)));
             return false;
