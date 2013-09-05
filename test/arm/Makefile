@@ -4,7 +4,8 @@ SRC_DIRS			:= . ../../src $(wildcard ../../src/target-*)
 EXECOPT 			:= 
 INCLUDE_DIRS		:=  ../../include
 USE_GCC				:= 1
-ifeq ($(USE_GCC),0)
+LLVM_CONFIG			?= llvm-config
+ifeq ($(USE_GCC),1)
 CC					:= gcc
 CXX					:= g++
 CPP					:= cpp
@@ -13,18 +14,18 @@ CC					:= clang
 CXX					:= clang++
 CPP					:= clang -E
 endif
-CPPFLAGS			:= $(addprefix -I,$(INCLUDE_DIRS)) $(shell llvm-config --cppflags)
+CPPFLAGS			:= $(addprefix -I,$(INCLUDE_DIRS)) $(shell $(LLVM_CONFIG) --cppflags)
 ifeq ($(DEBUG),1)
 DEBUGGER_CMD		:= gdb --args
-CXXFLAGS			:= $(filter-out -O%,$(shell llvm-config --cxxflags)) -g3 -O0 -Wall -std=c++11 -fcxx-exceptions
+CXXFLAGS			:= -MD -g -O0 -Wall -fexceptions # -std=c++11
 else
 DEBUGGER_CMD		:=
-CXXFLAGS			:= $(filter-out -O%,$(shell llvm-config --cxxflags)) -g3 -O3 -Wall -std=c++11 -fcxx-exceptions
+CXXFLAGS			:= -MD -g -O3 -Wall -fexceptions # -std=c++11
 endif
 CFLAGS				:= $(CXXFLAGS)
 LIB_DIRS			:=
 LIBS				:= dl
-LDFLAGS             := $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIBS)) $(shell llvm-config --ldflags --libs) -Wl,-rpath=$(dir $(shell which clang))/../lib64
+LDFLAGS             := $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIBS)) $(shell $(LLVM_CONFIG) --ldflags --libs) -Wl,-rpath=$(dir $(shell which clang))/../lib64
 SRCS				:= $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp $(dir)/*.c))
 OBJS				:= $(addprefix .,$(addsuffix .o,$(basename $(notdir $(SRCS)))))
 
@@ -54,17 +55,7 @@ run.x:$(OBJS)
 	@echo Compiling $< $(SHOW_MSG)
 	$(SHOW_CMD_LINE) $(CC)	$(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-.%.d:%.cpp
-	@echo Generating dependency list of $< $(SHOW_MSG)
-	@echo -n "$@ ." > $@
-	$(SHOW_CMD_LINE) $(CPP) $(CPPFLAGS) $< -MM >> $@ ||  rm -f $@ || /bin/false
-
-.%.d:%.c
-	@echo Generating dependency list of $< $(SHOW_MSG)
-	@echo -n "$@ ." > $@
-	$(SHOW_CMD_LINE) $(CPP) $(CPPFLAGS) $< -MM >> $@ ||  rm -f $@ || /bin/false
-
 clean:
 	rm -f .*.[do] *.x
 
--include $(addsuffix .d,$(basename $(OBJS)))
+-include $(wildcard .*.d)

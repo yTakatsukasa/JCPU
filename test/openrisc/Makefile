@@ -17,10 +17,10 @@ endif
 CPPFLAGS			:= $(addprefix -I,$(INCLUDE_DIRS)) $(shell $(LLVM_CONFIG) --cppflags)
 ifeq ($(DEBUG),1)
 DEBUGGER_CMD		:= gdb --args
-CXXFLAGS			:= $(filter-out -O%,$(shell $(LLVM_CONFIG) --cxxflags)) -g3 -O0 -Wall -fexceptions # -std=c++11
+CXXFLAGS			:= -MD -g -O0 -Wall -fexceptions # -std=c++11
 else
 DEBUGGER_CMD		:=
-CXXFLAGS			:= $(filter-out -O%,$(shell $(LLVM_CONFIG) --cxxflags)) -g3 -O3 -Wall -fexceptions # -std=c++11
+CXXFLAGS			:= -MD -g -O3 -Wall -fexceptions # -std=c++11
 endif
 CFLAGS				:= $(CXXFLAGS)
 LIB_DIRS			:=
@@ -55,17 +55,7 @@ run.x:$(OBJS)
 	@echo Compiling $< $(SHOW_MSG)
 	$(SHOW_CMD_LINE) $(CC)	$(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-.%.d:%.cpp
-	@echo Generating dependency list of $< $(SHOW_MSG)
-	@echo -n "$@ ." > $@
-	$(SHOW_CMD_LINE) $(CPP) $(CPPFLAGS) $< -MM >> $@ ||  rm -f $@ || /bin/false
-
-.%.d:%.c
-	@echo Generating dependency list of $< $(SHOW_MSG)
-	@echo -n "$@ ." > $@
-	$(SHOW_CMD_LINE) $(CPP) $(CPPFLAGS) $< -MM >> $@ ||  rm -f $@ || /bin/false
-
 clean:
 	rm -f .*.[do] *.x
 
--include $(addsuffix .d,$(basename $(OBJS)))
+-include $(wildcard .*.d)
