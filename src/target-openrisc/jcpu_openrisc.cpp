@@ -688,6 +688,14 @@ std::cerr
 
 gdb::gdb_target_if::run_state_e openrisc_vm::step_exec(){
     virt_addr_t pc(get_reg_func(openrisc_arch::REG_PC));
+
+    const target_ulong sr = get_reg_func(openrisc_arch::REG_SR);
+    if(irq_status && (sr & (1U << openrisc_arch::SR_IEE)) == 0){//jump to exception handler
+        set_reg_func(openrisc_arch::REG_EPCR0, get_reg_func(openrisc_arch::REG_PNEXT_PC));
+        set_reg_func(openrisc_arch::REG_PNEXT_PC, openrisc_arch::exception_vector[openrisc_arch::EXC_IRQ]);
+        set_reg_func(openrisc_arch::REG_SR, sr | (1U << openrisc_arch::SR_IEE));
+        pc = virt_addr_t(openrisc_arch::exception_vector[openrisc_arch::EXC_IRQ]);
+    }
     const break_point *const nearest = bp_man.find_nearest(pc);
     const phys_addr_t pc_p = code_v2p(pc);
     bb_man.invalidate(pc_p, pc_p + phys_addr_t(4));
@@ -697,7 +705,6 @@ gdb::gdb_target_if::run_state_e openrisc_vm::step_exec(){
     dump_regs();
 #endif
     total_icount += bb->get_icount();
-    jcpu_assert(irq_status == false);//Not implemented yet
     return (nearest && nearest->get_pc() == pc) ? RUN_STAT_BREAK : RUN_STAT_NORMAL;
 }
 
