@@ -573,21 +573,21 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
             {
                 static const char *const mn = "l.sw";
                 Value *const EA = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(I, get_reg_type(), mn), mn);
-                gen_sw(EA, sizeof(target_ulong), gen_get_reg(rB, mn), mn);
+                gen_sw(EA, sizeof(target_ulong), gen_get_reg(rB, mn));
             }
             return false;
         case 0x36: //l.sb 
             {
                 static const char *const mn = "l.sb";
                 Value *const EA = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(I, get_reg_type(), mn), mn);
-                gen_sw(EA, 1, gen_get_reg(rB, mn), mn);
+                gen_sw(EA, 1, gen_get_reg(rB, mn));
             }
             return false;
         case 0x37: //l.sh
             {
                 static const char *const mn = "l.sh";
                 Value *const EA = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(I, get_reg_type(), mn), mn);
-                gen_sw(EA, 2, gen_get_reg(rB, mn), mn);
+                gen_sw(EA, 2, gen_get_reg(rB, mn));
             }
             return false;
  

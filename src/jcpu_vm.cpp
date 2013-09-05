@@ -47,27 +47,47 @@ llvm::ReturnInst *ir_builder_wrapper::CreateRet(llvm::Value *v)const{
 }
 
 llvm::CallInst *ir_builder_wrapper::CreateCall(llvm::Function *func, const char *nm)const{
-    std::string str(nm);
-    set_pc_str(str);
-    return builder->CreateCall(func, str.c_str());
+    if(func->getReturnType()->isVoidTy()){
+        return builder->CreateCall(func);
+    }
+    else{
+        std::string str(nm);
+        set_pc_str(str);
+        return builder->CreateCall(func, str.c_str());
+    }
 }
 
 llvm::CallInst *ir_builder_wrapper::CreateCall(llvm::Function *func, llvm::Value *arg, const char *nm)const{
-    std::string str(nm);
-    set_pc_str(str);
-    return builder->CreateCall(func, arg, str.c_str());
+    if(func->getReturnType()->isVoidTy()){
+        return builder->CreateCall(func, arg);
+    }
+    else{
+        std::string str(nm);
+        set_pc_str(str);
+        return builder->CreateCall(func, arg, str.c_str());
+    }
 }
 
 llvm::CallInst *ir_builder_wrapper::CreateCall2(llvm::Function *func, llvm::Value *arg0, llvm::Value *arg1, const char *nm)const{
-    std::string str(nm);
-    set_pc_str(str);
-    return builder->CreateCall2(func, arg0, arg1, str.c_str());
+    if(func->getReturnType()->isVoidTy()){
+        return builder->CreateCall2(func, arg0, arg1);
+    }
+    else{
+        std::string str(nm);
+        set_pc_str(str);
+        return builder->CreateCall2(func, arg0, arg1, str.c_str());
+    }
 }
 
 llvm::CallInst *ir_builder_wrapper::CreateCall3(llvm::Function *func, llvm::Value *arg0, llvm::Value *arg1, llvm::Value *arg2, const char *nm)const{
-    std::string str(nm);
-    set_pc_str(str);
-    return builder->CreateCall3(func, arg0, arg1, arg2, str.c_str());
+    if(func->getReturnType()->isVoidTy()){
+        return builder->CreateCall3(func, arg0, arg1, arg2);
+    }
+    else{
+        std::string str(nm);
+        set_pc_str(str);
+        return builder->CreateCall3(func, arg0, arg1, arg2, str.c_str());
+    }
 }
 
 llvm::Value * ir_builder_wrapper::CreateZExt(llvm::Value *v, llvm::Type *t, const char *nm)const{

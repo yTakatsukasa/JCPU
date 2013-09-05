@@ -243,7 +243,7 @@ class jcpu_vm_base : public ::jcpu::vm::jcpu_vm_if, public ::jcpu::gdb::gdb_targ
     llvm::ConstantInt * gen_const(target_ulong val)const;
     llvm::ConstantInt * gen_get_pc()const;
     llvm::Value *gen_cond_code(llvm::Value *cond, llvm::Value *t, llvm::Value *f, const char *mn = "")const;//cond must be 1 or 0
-    llvm::CallInst * gen_sw(llvm::Value *addr, unsigned int, llvm::Value *val, const char *mn = "")const;
+    llvm::CallInst * gen_sw(llvm::Value *addr, unsigned int, llvm::Value *val)const;
     llvm::Value * gen_lw(llvm::Value *addr, unsigned int, const char *mn = "")const;
 
     //gdb_target_if
@@ -335,17 +335,24 @@ llvm::Value *jcpu_vm_base<ARCH>::gen_cond_code(llvm::Value *cond, llvm::Value *t
 }
 
 template<typename ARCH>
-llvm::CallInst * jcpu_vm_base<ARCH>::gen_sw(llvm::Value *addr, unsigned int len, llvm::Value *val, const char *mn)const{
+llvm::CallInst * jcpu_vm_base<ARCH>::gen_sw(llvm::Value *addr, unsigned int len, llvm::Value *val)const{
     jcpu_assert(len == 1 || len == 2 || len == 4 || len == 8);
     llvm::Value *const len_llvm = gen_const(len);
-    return builder->CreateCall3(mod->getFunction("helper_mem_write"), addr, len_llvm, val, mn);
+    return builder->CreateCall3(
+            mod->getFunction("helper_mem_write"),
+            builder->CreateZExt(addr, builder->getInt64Ty()), 
+            len_llvm,
+            builder->CreateZExt(val, builder->getInt64Ty())
+            );
 }
 
 template<typename ARCH>
 llvm::Value * jcpu_vm_base<ARCH>::gen_lw(llvm::Value *addr, unsigned int len, const char *mn)const{
     jcpu_assert(len == 1 || len == 2 || len == 4 || len == 8);
     llvm::Value *const len_llvm = gen_const(len);
-    llvm::CallInst *const cinst = builder->CreateCall2(mod->getFunction("helper_mem_read"), addr, len_llvm, mn);
+    llvm::CallInst *const cinst = builder->CreateCall2(mod->getFunction("helper_mem_read"),
+            builder->CreateZExt(addr, builder->getInt64Ty()),
+            len_llvm, mn);
     switch(len){
         case 1: return builder->CreateTrunc(cinst, builder->getInt8Ty());
         case 2: return builder->CreateTrunc(cinst, builder->getInt16Ty());

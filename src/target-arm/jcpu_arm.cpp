@@ -389,7 +389,7 @@ bool arm_vm::disas_imm_ldst(target_ulong insn, int *const insn_dpeth){
         is_jump = gen_set_reg_by_cond(Rd_raw, cond, dat);
     }
     else{//store
-        gen_sw(dst_addr, sizeof(target_ulong), gen_get_reg_pc_check(Rd_raw, "str.val"), "str");
+        gen_sw(dst_addr, sizeof(target_ulong), gen_get_reg_pc_check(Rd_raw, "str.val"));
     }
     if(!(P ==1 && W == 0)){
         is_jump |= gen_set_reg_by_cond(Rn_raw, cond, calc_addr);
