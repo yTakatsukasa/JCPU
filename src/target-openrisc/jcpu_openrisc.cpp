@@ -98,7 +98,7 @@ class openrisc_vm : public vm::jcpu_vm_base<openrisc_arch>{
         Value *const drop_mask = gen_const(~(static_cast<target_ulong>(1) << flag));
         Value *const shifted_val = builder->CreateShl(builder->CreateZExt(val, get_reg_type()), flag, mn);
         Value *const new_sr = builder->CreateOr(builder->CreateAnd(sr, drop_mask, mn), shifted_val, mn);
-        gen_set_reg(openrisc_arch::REG_SR, new_sr, mn);
+        gen_set_reg(openrisc_arch::REG_SR, new_sr);
     }
     const basic_block *disas(virt_addr_t, int, const break_point *);
     virtual run_state_e step_exec() JCPU_OVERRIDE;
@@ -270,21 +270,21 @@ bool openrisc_vm::disas_arith(target_ulong insn){
                 //FIXME overflow
                 return false;
             case 0x03: //l.and rD = rA | rB
-                gen_set_reg(rD, builder->CreateAnd(gen_get_reg(rA, "l.or_A"), gen_get_reg(rB, "l.or_B"), "l.or"), "l.or_D");
+                gen_set_reg(rD, builder->CreateAnd(gen_get_reg(rA, "l.or_A"), gen_get_reg(rB, "l.or_B"), "l.or"));
                 return false;
             case 0x04: //l.or rD = rA | rB
-                gen_set_reg(rD, builder->CreateOr(gen_get_reg(rA, "l.or_A"), gen_get_reg(rB, "l.or_B"), "l.or"), "l.or_D");
+                gen_set_reg(rD, builder->CreateOr(gen_get_reg(rA, "l.or_A"), gen_get_reg(rB, "l.or_B"), "l.or"));
                 return false;
             case 0x08:
                 if(op3 == 0x00){//l.sll rD = rA << rB[4:0]
                     Value *const rega = gen_get_reg(rA, "l.sll_A");
                     Value *const regb = builder->CreateAnd(gen_get_reg(rB, "l.sll_B"), gen_const(0x1F), "l.sll_B[4:0]");
-                    gen_set_reg(rD, builder->CreateShl(rega, regb, "l.sll"), "l.sll_D");
+                    gen_set_reg(rD, builder->CreateShl(rega, regb, "l.sll"));
                 }
                 else if(op3 == 0x01){//l.srl rD = rA >> rB[4:0]
                     Value *const rega = gen_get_reg(rA, "l.srl_A");
                     Value *const regb = builder->CreateAnd(gen_get_reg(rB, "l.sll_B"), gen_const(0x1F), "l.sll_B[4:0]");
-                    gen_set_reg(rD, builder->CreateLShr(rega, regb, "l.srl"), "l.srl_D");
+                    gen_set_reg(rD, builder->CreateLShr(rega, regb, "l.srl"));
                 }
                 else{
                     jcpu_or_disas_assert(!"Not implemented yet");
@@ -298,7 +298,7 @@ bool openrisc_vm::disas_arith(target_ulong insn){
     else if(op2 == 3){
         switch(op){
             case 0x06: //l.mul rD = rA * rB, SR[OV] = signed overflow
-                gen_set_reg(rD, builder->CreateMul(gen_get_reg(rA, "l.mul_A"), gen_get_reg(rB, "lmul_B"), "l.mul"), "l.mul_D");
+                gen_set_reg(rD, builder->CreateMul(gen_get_reg(rA, "l.mul_A"), gen_get_reg(rB, "lmul_B"), "l.mul"));
                 //FIXME Overflow
                 return false;
 
@@ -320,13 +320,13 @@ bool openrisc_vm::disas_logical(target_ulong insn){
     ConstantInt *const L_32 = ConstantInt::get(*context, APInt(openrisc_arch::reg_bit_width, bit_sub<0, 5>(insn)));
     switch(op){
         case 0x0: //l.slli rD = rA << L
-            gen_set_reg(rD, builder->CreateShl(gen_get_reg(rA, "l.slli"), L_32, "l.slli"), "l.slli");
+            gen_set_reg(rD, builder->CreateShl(gen_get_reg(rA, "l.slli"), L_32, "l.slli"));
             return false;
         case 0x1: //l.srli rD = rA >> L logical
-            gen_set_reg(rD, builder->CreateLShr(gen_get_reg(rA, "l.srli"), L_32, "l.srli"), "l.srli");
+            gen_set_reg(rD, builder->CreateLShr(gen_get_reg(rA, "l.srli"), L_32, "l.srli"));
             return false;
         case 0x2: //l.srai rD = rA >> L arith
-            gen_set_reg(rD, builder->CreateAShr(gen_get_reg(rA, "l.srai"), L_32, "l.srai"), "l.srai");
+            gen_set_reg(rD, builder->CreateAShr(gen_get_reg(rA, "l.srai"), L_32, "l.srai"));
             return false;
         default:
             jcpu_or_disas_assert(!"Not implemented yet");
@@ -440,7 +440,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
                 static const char *const mn = "l.j";
                 ConstantInt *const pc = gen_get_pc();
                 Value *const pc_offset = builder->CreateShl(builder->CreateSExt(n26, get_reg_type(), mn), 2, mn);
-                gen_set_reg(openrisc_arch::REG_PNEXT_PC, builder->CreateAdd(pc, pc_offset, mn), mn);
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, builder->CreateAdd(pc, pc_offset, mn));
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 jcpu_or_disas_assert(!ret);
                 return true;
@@ -486,7 +486,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
         case 0x06:
             if(!bit_sub<16, 1>(insn)){//l.movhi rD = extz(lo16) << 16
                 static const char *const mn = "l.movhi";
-                gen_set_reg(rD, builder->CreateShl(builder->CreateZExt(lo16, get_reg_type(), mn), gen_const(16), mn), mn);
+                gen_set_reg(rD, builder->CreateShl(builder->CreateZExt(lo16, get_reg_type(), mn), gen_const(16), mn));
                 return false;
             }
             else{
@@ -496,14 +496,14 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
         case 0x09: //l.rfe PC <= PRCR, SR <= ESR
             {
                 static const char *const mn = "l.rfe";
-                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(openrisc_arch::REG_EPCR0, mn), mn);
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(openrisc_arch::REG_EPCR0, mn));
                 gen_set_sr(openrisc_arch::SR_IEE, ConstantInt::get(*context, APInt(32, 0)));
             }
             return true;
         case 0x11: //l.jr PC = rB
             {
                 static const char *const mn = "l.jr";
-                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(rB, mn), mn);
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(rB, mn));
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 jcpu_or_disas_assert(!ret);
             }
@@ -511,7 +511,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
         case 0x12: //l.jalr PC = rB, LR <= PC + 8
             {
                 static const char *const mn = "l.jalr";
-                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(rB, mn), mn);
+                gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_get_reg(rB, mn));
                 const bool ret = disas_insn(processing_pc.top().first + static_cast<virt_addr_t>(4), insn_depth); //delay slot
                 jcpu_or_disas_assert(!ret);
                 //gen_set_reg(openrisc_arch::REG_LR, processing_pc.top().first + static_cast<virt_addr_t>(8), insn_depth); //delay slot
@@ -531,7 +531,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
                 static const char *const mn = "l.lbz";
                 Value *const addr = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(lo16, get_reg_type(), mn), mn);
                 Value *const dat = gen_lw(addr, 1, mn);
-                gen_set_reg(rD, builder->CreateZExt(dat, get_reg_type(), mn), mn);
+                gen_set_reg(rD, builder->CreateZExt(dat, get_reg_type(), mn));
             }
             return false;
         case 0x24: //l.lbs rD = sext(lb(sext(lo16) + rA))
@@ -539,7 +539,7 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
                 static const char *const mn = "l.lbs";
                 Value *const addr = builder->CreateAdd(gen_get_reg(rA, mn), builder->CreateSExt(lo16, get_reg_type(), mn), mn);
                 Value *const dat = gen_lw(addr, 1, mn);
-                gen_set_reg(rD, builder->CreateSExt(dat, get_reg_type(), mn), mn);
+                gen_set_reg(rD, builder->CreateSExt(dat, get_reg_type(), mn));
             }
             return false;
         case 0x27: //l.addi  (set rD (add rA lo16))
@@ -617,9 +617,9 @@ void openrisc_vm::start_func(phys_addr_t pc_p){
     builder->SetInsertPoint(bb);
     cur_func = func_main;
     cur_bb = bb;
-    gen_set_reg(openrisc_arch::REG_PC, gen_get_reg(openrisc_arch::REG_PNEXT_PC, "prologue"), "prologue");
+    gen_set_reg(openrisc_arch::REG_PC, gen_get_reg(openrisc_arch::REG_PNEXT_PC, "prologue"));
 #if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 1
-    gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_const(0xFFFFFFFF), "prologue"); //poison value
+    gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_const(0xFFFFFFFF)); //poison value
 #endif
 }
 

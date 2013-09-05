@@ -213,7 +213,7 @@ template<typename ARCH>
 class jcpu_vm_base : public ::jcpu::vm::jcpu_vm_if, public ::jcpu::gdb::gdb_target_if{
     llvm::ConstantInt *reg_index(typename ARCH::reg_e r)const;
     llvm::CallInst *gen_get_reg(llvm::Value *reg, const char *mn = "")const;
-    llvm::CallInst *gen_set_reg(llvm::Value *reg, llvm::Value *val, const char *mn = "")const;
+    llvm::CallInst *gen_set_reg(llvm::Value *reg, llvm::Value *val)const;
     struct set_reg_functor;
     protected:
     typedef typename ARCH::reg_e reg_e;
@@ -239,7 +239,7 @@ class jcpu_vm_base : public ::jcpu::vm::jcpu_vm_if, public ::jcpu::gdb::gdb_targ
 
     llvm::Type *get_reg_type()const;
     llvm::Value *gen_get_reg(reg_e r, const char *nm = "")const;
-    void gen_set_reg(reg_e r, llvm::Value *val, const char *nm = "")const;
+    void gen_set_reg(reg_e r, llvm::Value *val)const;
     llvm::ConstantInt * gen_const(target_ulong val)const;
     llvm::ConstantInt * gen_get_pc()const;
     llvm::Value *gen_cond_code(llvm::Value *cond, llvm::Value *t, llvm::Value *f, const char *mn = "")const;//cond must be 1 or 0
@@ -285,8 +285,8 @@ llvm::CallInst *jcpu_vm_base<ARCH>::gen_get_reg(llvm::Value *reg, const char *mn
 }
 
 template<typename ARCH>
-llvm::CallInst *jcpu_vm_base<ARCH>::gen_set_reg(llvm::Value *reg, llvm::Value *val, const char *mn)const{
-    return builder->CreateCall2(mod->getFunction("set_reg"), reg, val, mn);
+llvm::CallInst *jcpu_vm_base<ARCH>::gen_set_reg(llvm::Value *reg, llvm::Value *val)const{
+    return builder->CreateCall2(mod->getFunction("set_reg"), reg, val);
 }
 
 template<typename ARCH>
@@ -312,7 +312,7 @@ llvm::Value *jcpu_vm_base<ARCH>::gen_get_reg(reg_e r, const char *nm)const{
 }
 
 template<typename ARCH>
-void jcpu_vm_base<ARCH>::gen_set_reg(reg_e r, llvm::Value *val, const char *nm)const{
+void jcpu_vm_base<ARCH>::gen_set_reg(reg_e r, llvm::Value *val)const{
     reg_cache.set(r, val, true); 
 }
 

@@ -78,13 +78,13 @@ class arm_vm : public vm::jcpu_vm_base<arm_arch>{
             return gen_get_reg(r, nm);
         }
     }
-    bool gen_set_reg_pc_check(reg_e r, llvm::Value *val, const char *nm)const{
+    bool gen_set_reg_pc_check(reg_e r, llvm::Value *val)const{
         if(r == arm_arch::REG_PC){
-            gen_set_reg(arm_arch::REG_PNEXT_PC, val, nm);
+            gen_set_reg(arm_arch::REG_PNEXT_PC, val);
             return true;
         }
         else{
-            gen_set_reg(r, val, nm);
+            gen_set_reg(r, val);
             return false;
         }
     }
@@ -103,7 +103,7 @@ class arm_vm : public vm::jcpu_vm_base<arm_arch>{
     const basic_block *disas(virt_addr_t, int, const break_point *);
     virtual run_state_e step_exec() JCPU_OVERRIDE;
     phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);} //FIXME implement MMU
-    bool gen_set_reg_by_cond(arm_arch::reg_e, unsigned int, llvm::Value *, const char * = "");
+    bool gen_set_reg_by_cond(arm_arch::reg_e, unsigned int, llvm::Value *);
     public:
     explicit arm_vm(jcpu_ext_if &);
     virtual run_state_e run() JCPU_OVERRIDE;
@@ -271,9 +271,9 @@ void arm_vm::start_func(phys_addr_t pc_p){
     builder->SetInsertPoint(bb);
     cur_func = func_main;
     cur_bb = bb;
-    gen_set_reg(arm_arch::REG_PC, gen_get_reg(arm_arch::REG_PNEXT_PC, "prologue"), "prologue");
+    gen_set_reg(arm_arch::REG_PC, gen_get_reg(arm_arch::REG_PNEXT_PC, "prologue"));
 #if defined(JCPU_ARM_DEBUG) && JCPU_ARM_DEBUG > 1
-    gen_set_reg(arm_arch::REG_PNEXT_PC, gen_const(0xFFFFFFFF), "prologue"); //poison value
+    gen_set_reg(arm_arch::REG_PNEXT_PC, gen_const(0xFFFFFFFF)); //poison value
 #endif
 }
 
@@ -358,7 +358,7 @@ bool arm_vm::disas_data_imm(target_ulong insn, int *const insn_dpeth){
     jcpu_assert(!S);
     switch(op){
         case 0x4://add 
-            return gen_set_reg_by_cond(Rd_raw, cond, builder->CreateAdd(gen_get_reg_pc_check(Rn_raw), shifter, "add"), "add");
+            return gen_set_reg_by_cond(Rd_raw, cond, builder->CreateAdd(gen_get_reg_pc_check(Rn_raw), shifter, "add"));
         default:
             jcpu_assert(!"Not implemented yet");
     }
@@ -454,9 +454,9 @@ bool arm_vm::disas_copro(target_ulong insn, int *const insn_dpeth){
 }
 
 
-bool arm_vm::gen_set_reg_by_cond(arm_arch::reg_e reg, unsigned int cond, llvm::Value* val, const char *nm){
+bool arm_vm::gen_set_reg_by_cond(arm_arch::reg_e reg, unsigned int cond, llvm::Value* val){
     jcpu_arm_disas_assert(cond == 0xE);
-    return gen_set_reg_pc_check(reg, val, nm);
+    return gen_set_reg_pc_check(reg, val);
 }
 
 
