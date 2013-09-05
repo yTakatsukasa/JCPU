@@ -244,10 +244,11 @@ void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
                 jcpu_assert(toks.size() >= 2);
                 const uint64_t addr = std::strtoll(toks[0].c_str() + 1, JCPU_NULLPTR, 16);
                 const unsigned int len = std::strtol(toks[1].c_str(), JCPU_NULLPTR, 16);
-                const uint64_t val = tgt.read_mem_dbg(addr, len);
-
                 std::stringstream ss;
-                ss << std::hex << std::setw(len * 2) << std::setfill('0') << val;
+                for(unsigned int i = 0; i < len; ++i){
+                    const unsigned int v = tgt.read_mem_dbg(addr + i, 1);
+                    ss << std::hex << std::setw(2) << std::setfill('0') << v;
+                }
                 smsg << ss.str().c_str();
             }
             else if(msg.start_with("Z") || msg.start_with("z")){//set or unset breakpoints
