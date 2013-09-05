@@ -100,7 +100,8 @@ gdb_rcv_msg::gdb_rcv_msg(std::istream &is){
                     state = ST_DONE;
                     break;
                 default:
-                    std::cerr << "ERROR unexpected char '" << static_cast<char>(c) << "' (" << std::hex << c << ") received" << std::endl;
+                    std::cerr << "ERROR unexpected char '"
+                        << static_cast<char>(c) << "' (" << std::hex << c << ") received" << std::endl;
                     abort();
                     break;
             }
@@ -199,6 +200,15 @@ void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
             else if(msg.start_with("qOffsets")){
                 smsg << "Text=0;Data=0;Bss=0;";
             }
+            else if (msg.start_with("qAttached")){
+                smsg << "1";
+            }
+            else if(msg.start_with("qSymbol")){
+                smsg << "OK";
+            }
+            else if(msg.start_with("qTStatus")){ //is trace running?
+                smsg << "";//Not supported
+            }
             else if(msg.start_with("Hc")){
                 smsg << "OK";
             }
@@ -264,6 +274,19 @@ void gdb_server::impl::wait_and_run(gdb_target_if &tgt, unsigned int port_num){
                     ss << std::hex << std::setw(reg_width / 4) << std::setfill('0') << regs[i];
                     smsg << ss.str().c_str();
                 }
+            }
+            else if(msg.start_with("p")){//get general register value
+                const std::vector<std::string> toks = msg.split();
+                const unsigned int reg_id = std::strtol(toks[0].c_str() + 1, JCPU_NULLPTR, 16) - 1;
+                const unsigned int reg_width = tgt.get_reg_width();
+                std::vector<uint64_t> regs;
+                tgt.get_reg_value(regs);
+                std::stringstream ss;
+                ss << std::hex << std::setw(reg_width / 4) << std::setfill('0') << regs.at(reg_id);
+                smsg << ss.str().c_str();
+            }
+            else if(msg.start_with("vCont?")){
+                smsg << "";//Not supported
             }
             else{
                 jcpu_assert(!"Not supported command");
