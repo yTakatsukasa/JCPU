@@ -278,13 +278,13 @@ bool openrisc_vm::disas_arith(target_ulong insn){
             case 0x08:
                 if(op3 == 0x00){//l.sll rD = rA << rB[4:0]
                     Value *const rega = gen_get_reg(rA, "l.sll_A");
-                    Value *const regb5 = builder->CreateTrunc(gen_get_reg(rB, "l.sll_B"), IntegerType::get(*context, 5), "l.sll_B5");
-                    gen_set_reg(rD, builder->CreateShl(rega, regb5, "l.sll"), "l.sll_D");
+                    Value *const regb = builder->CreateAnd(gen_get_reg(rB, "l.sll_B"), gen_const(0x1F), "l.sll_B[4:0]");
+                    gen_set_reg(rD, builder->CreateShl(rega, regb, "l.sll"), "l.sll_D");
                 }
                 else if(op3 == 0x01){//l.srl rD = rA >> rB[4:0]
                     Value *const rega = gen_get_reg(rA, "l.srl_A");
-                    Value *const regb5 = builder->CreateTrunc(gen_get_reg(rB, "l.srl_B"), IntegerType::get(*context, 5), "l.srl_B5");
-                    gen_set_reg(rD, builder->CreateLShr(rega, regb5, "l.srl"), "l.srl_D");
+                    Value *const regb = builder->CreateAnd(gen_get_reg(rB, "l.sll_B"), gen_const(0x1F), "l.sll_B[4:0]");
+                    gen_set_reg(rD, builder->CreateLShr(rega, regb, "l.srl"), "l.srl_D");
                 }
                 else{
                     jcpu_or_disas_assert(!"Not implemented yet");
@@ -317,7 +317,7 @@ bool openrisc_vm::disas_logical(target_ulong insn){
     const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
 
     //ConstantInt *const L_64 = ConstantInt::get(*context, APInt(6, bit_sub<0, 6>(insn)));
-    ConstantInt *const L_32 = ConstantInt::get(*context, APInt(5, bit_sub<0, 5>(insn)));
+    ConstantInt *const L_32 = ConstantInt::get(*context, APInt(openrisc_arch::reg_bit_width, bit_sub<0, 5>(insn)));
     switch(op){
         case 0x0: //l.slli rD = rA << L
             gen_set_reg(rD, builder->CreateShl(gen_get_reg(rA, "l.slli"), L_32, "l.slli"), "l.slli");
