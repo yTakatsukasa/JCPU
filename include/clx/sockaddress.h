@@ -145,7 +145,11 @@ namespace clx {
 			return tmp;
 		}
 		
+#ifdef ntohs
+		int port() const { return ntohs(addr_.sin_port); }
+#else
 		int port() const { return ::ntohs(addr_.sin_port); }
+#endif
 		size_type size() const { return sizeof(addr_); }
 		const inet_type* data() const { return &addr_; }
 		
