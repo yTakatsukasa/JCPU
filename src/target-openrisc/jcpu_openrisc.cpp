@@ -57,7 +57,16 @@ struct openrisc_arch{
     enum cpucfgr_bit_e{
         CPUCFGR_ND = 10
     };
+    enum exception_e{
+        EXC_RESET = 0, EXC_BUS_ERROR, EXC_DATA_PAGE_FAULT, EXC_INSN_PAGE_FAULT, EXC_TICK_TIMER,
+        EXC_ALIGNMENT, EXC_ILLEGAL_INSN, EXC_IRQ, EXC_DTLB_MISS, EXC_ITLB_MISS, EXC_RANGE, EXC_SYS_CALL,
+        EXC_FP, EXC_TRAP
+    };
+    static const target_ulong exception_vector[];
+};
 
+const openrisc_arch::target_ulong openrisc_arch::exception_vector[] = {
+    0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0x700, 0x800, 0x900, 0xA00, 0xB00, 0xC00
 };
 
 typedef openrisc_arch::virt_addr_t virt_addr_t;
@@ -668,9 +677,9 @@ std::cerr
         const target_ulong sr = get_reg_func(openrisc_arch::REG_SR);
         if(irq_status && (sr & (1U << openrisc_arch::SR_IEE)) == 0){//jump to exception handler
             set_reg_func(openrisc_arch::REG_EPCR0, get_reg_func(openrisc_arch::REG_PNEXT_PC));
-            set_reg_func(openrisc_arch::REG_PNEXT_PC, 0x800);
+            set_reg_func(openrisc_arch::REG_PNEXT_PC, openrisc_arch::exception_vector[openrisc_arch::EXC_IRQ]);
             set_reg_func(openrisc_arch::REG_SR, sr | (1U << openrisc_arch::SR_IEE));
-            pc = virt_addr_t(0x800);
+            pc = virt_addr_t(openrisc_arch::exception_vector[openrisc_arch::EXC_IRQ]);
         }
     }
     jcpu_assert(!"Never comes here");
