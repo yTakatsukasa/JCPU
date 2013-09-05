@@ -145,6 +145,7 @@ void openrisc_vm::get_reg_value(std::vector<uint64_t> &regs)const{
     //regs.push_back(get_reg_func(openrisc_arch::REG_PC));
     regs.push_back(get_reg_func(openrisc_arch::REG_PNEXT_PC));
 }
+
 void openrisc_vm::set_reg_value(unsigned int reg_idx, uint64_t reg_val){
     jcpu_assert(reg_idx < 32 + 1);
     set_reg_func(reg_idx, reg_val);
@@ -222,16 +223,18 @@ const basic_block *openrisc_vm::disas(virt_addr_t start_pc_, int max_insn, const
         const bool done = disas_insn(start_pc_, &insn_depth);
         num_insn += insn_depth;
         pc = start_pc + (done ? 8 : 4);
-        gen_set_reg(openrisc_arch::REG_PC, gen_const(pc));
         if(done){
             gen_set_reg(openrisc_arch::REG_PC, gen_get_reg(openrisc_arch::REG_PNEXT_PC));
         }
         else{
+            gen_set_reg(openrisc_arch::REG_PC, gen_const(pc));
             gen_set_reg(openrisc_arch::REG_PNEXT_PC, gen_const(pc));
         }
     }
     llvm::Function *const f = end_func();
-    basic_block *const bb = new basic_block(start_pc, phys_addr_t(pc - 4), f, ee, num_insn);
+    const phys_addr_t end_pc(pc - 4);
+    jcpu_assert(start_pc <= end_pc);
+    basic_block *const bb = new basic_block(start_pc, end_pc, f, ee, num_insn);
     bb_man.add(bb);
 #if defined(JCPU_OPENRISC_DEBUG) && JCPU_OPENRISC_DEBUG > 2
     dump_ir();
@@ -615,11 +618,11 @@ gdb::gdb_target_if::run_state_e openrisc_vm::run(){
     virt_addr_t pc(get_reg_func(openrisc_arch::REG_PC));
     for(;;){
         const break_point *const nearest = bp_man.find_nearest(pc);
-        const phys_addr_t pc_p = code_v2p(pc);
-        const basic_block *const bb = bb_man.exists_by_start_addr(pc_p) ? bb_man.find_by_start_addr(pc_p) : disas(pc, -1, nearest);
         if(nearest && nearest->get_pc() == pc){
             return RUN_STAT_BREAK;
         }
+        const phys_addr_t pc_p = code_v2p(pc);
+        const basic_block *const bb = bb_man.exists_by_start_addr(pc_p) ? bb_man.find_by_start_addr(pc_p) : disas(pc, -1, nearest);
 #if 0
 std::cerr << "PC=" << std::hex << std::setw(8) << std::setfill('0') << pc << std::endl;
 std::cerr
