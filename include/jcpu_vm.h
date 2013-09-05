@@ -36,13 +36,13 @@ class general_reg_cache{
     public:
     general_reg_cache(){clear();}
     llvm::Value * set(typename ARCH::reg_e r, llvm::Value *v, bool dirty){
-        jcpu_assert(r < num_regs);
+        jcpu_assert(static_cast<unsigned int>(r) < num_regs);
         regs[r].second |= dirty;
         regs[r].first = v;
         return v;
     }
     llvm::Value *get(typename ARCH::reg_e r)const{
-        jcpu_assert(r < num_regs);
+        jcpu_assert(static_cast<unsigned int>(r) < num_regs);
         return regs[r].first;
     }
     template<typename F>
