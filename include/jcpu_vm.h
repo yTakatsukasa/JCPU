@@ -286,7 +286,7 @@ llvm::CallInst *jcpu_vm_base<ARCH>::gen_get_reg(llvm::Value *reg, const char *mn
 
 template<typename ARCH>
 llvm::CallInst *jcpu_vm_base<ARCH>::gen_set_reg(llvm::Value *reg, llvm::Value *val)const{
-    return builder->CreateCall2(mod->getFunction("set_reg"), reg, val);
+    return builder->CreateCall2(mod->getFunction("set_reg"), builder->CreateTrunc(reg, builder->getInt16Ty()), val);
 }
 
 template<typename ARCH>
@@ -406,6 +406,7 @@ template<typename ARCH>
 llvm::Function *jcpu_vm_base<ARCH>::end_func(){
     reg_cache.flush_and_clear(set_reg_functor(this));
     llvm::Value *const pc = gen_get_reg(reg_index(ARCH::REG_PNEXT_PC), "epilogue");
+    gen_set_reg(gen_const(ARCH::REG_PC), pc);
 #if defined(JCPU_VM_DEBUG) && JCPU_VM_DEBUG > 1
     builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
 #endif
