@@ -90,6 +90,12 @@ llvm::CallInst *ir_builder_wrapper::CreateCall3(llvm::Function *func, llvm::Valu
     }
 }
 
+llvm::Value *ir_builder_wrapper::CreateSelect(llvm::Value *cond, llvm::Value *t_value, llvm::Value *f_value, const char *nm)const{
+    std::string str(nm);
+    set_pc_str(str);
+    return builder->CreateSelect(cond, t_value, f_value, str.c_str());
+}
+
 llvm::Value * ir_builder_wrapper::CreateZExt(llvm::Value *v, llvm::Type *t, const char *nm)const{
     std::string str(nm);
     set_pc_str(str);
@@ -119,6 +125,8 @@ llvm::Value * ir_builder_wrapper::CreateTrunc(llvm::Value *v, llvm::Type *t, con
 BUILDER_CREATE2(Add)
 BUILDER_CREATE2(Sub)
 BUILDER_CREATE2(Mul)
+BUILDER_CREATE2(UDiv)
+BUILDER_CREATE2(SDiv)
 BUILDER_CREATE2(Or)
 BUILDER_CREATE2(And)
 BUILDER_CREATE2(Xor)

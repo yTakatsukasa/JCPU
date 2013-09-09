@@ -180,12 +180,15 @@ class ir_builder_wrapper{
     llvm::CallInst *CreateCall(llvm::Function *, llvm::Value *, const char * = "")const;
     llvm::CallInst *CreateCall2(llvm::Function *, llvm::Value *, llvm::Value *, const char * = "")const;
     llvm::CallInst *CreateCall3(llvm::Function *, llvm::Value *, llvm::Value *, llvm::Value *, const char * = "")const;
+    llvm::Value *CreateSelect(llvm::Value *, llvm::Value *, llvm::Value *, const char *)const;
     llvm::Value *CreateZExt(llvm::Value *, llvm::Type *, const char * = "")const;
     llvm::Value *CreateSExt(llvm::Value *, llvm::Type *, const char * = "")const;
     llvm::Value *CreateTrunc(llvm::Value *, llvm::Type *, const char * = "")const;
     llvm::Value *CreateAdd(llvm::Value *, llvm::Value *, const char * = "")const;
     llvm::Value *CreateSub(llvm::Value *, llvm::Value *, const char * = "")const;
     llvm::Value *CreateMul(llvm::Value *, llvm::Value *, const char * = "")const;
+    llvm::Value *CreateSDiv(llvm::Value *, llvm::Value *, const char * = "")const;
+    llvm::Value *CreateUDiv(llvm::Value *, llvm::Value *, const char * = "")const;
     llvm::Value *CreateOr(llvm::Value *, llvm::Value *, const char * = "")const;
     llvm::Value *CreateAnd(llvm::Value *, llvm::Value *, const char * = "")const;
     llvm::Value *CreateXor(llvm::Value *, llvm::Value *, const char * = "")const;
