@@ -91,6 +91,7 @@ class openrisc_vm : public vm::jcpu_vm_base<openrisc_arch>{
     bool disas_compare_immediate(target_ulong);
     bool disas_compare(target_ulong);
     bool disas_others(target_ulong, int *);
+    llvm::Value *gen_arith_code_with_ovf_check(llvm::Value *, llvm::Value*, llvm::Value * (vm::ir_builder_wrapper::*)(llvm::Value *, llvm::Value *, const char *)const, const char *);
     virtual void start_func(phys_addr_t) JCPU_OVERRIDE;
     void gen_set_sr(sr_flag_e flag, llvm::Value *val, const char *mn = "")const{//val must be 0 or 1
         using namespace llvm;
@@ -262,8 +263,10 @@ bool openrisc_vm::disas_arith(target_ulong insn){
     if(op2 == 0){
         switch(op){
             case 0x00://l.add rD = aA + rB, SR[CY] = unsigned overflow(carry), SR[OV] = signed overflow
-                gen_set_reg(rD, builder->CreateAdd(gen_get_reg(rA), gen_get_reg(rB), "l.add"));
-                //FIXME overflow
+                {
+                    Value *const result = gen_arith_code_with_ovf_check(gen_get_reg(rA), gen_get_reg(rB), &vm::ir_builder_wrapper::CreateAdd, "l.add");
+                    gen_set_reg(rD, result);
+                }
                 return false;
             case 0x02://l.sub rD = rA - rB, SR[CY] = unsigned overflow(carry), SR[OV] = signed overflow
                 gen_set_reg(rD, builder->CreateSub(gen_get_reg(rA), gen_get_reg(rB), "l.sub"));
@@ -596,6 +599,24 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
             jcpu_or_disas_assert(!"Not implemented yet");
             break;
     }
+}
+
+llvm::Value * openrisc_vm::gen_arith_code_with_ovf_check(llvm::Value *a, llvm::Value *b, llvm::Value *(vm::ir_builder_wrapper::*func)(llvm::Value *, llvm::Value *,const char *)const, const char *mn){
+    using namespace llvm;
+    Value *const a64 = builder->CreateSExt(a, builder->getInt64Ty());
+    Value *const b64 = builder->CreateSExt(b, builder->getInt64Ty());
+    Value *const result = (builder->*func)(a64, b64, mn);
+    Value *flag = builder->CreateAnd(
+            builder->CreateLShr(result, ConstantInt::get(*context, APInt(64, 31))),
+            ConstantInt::get(*context, APInt(64, 3)));
+    //if flag == 0 || flag == 3 -> Carry, Overflow
+    flag = builder->CreateOr(
+            builder->CreateICmpEQ(flag, ConstantInt::get(*context, APInt(64, 3))),
+            builder->CreateICmpEQ(flag, ConstantInt::get(*context, APInt(64, 0)))
+            );
+    gen_set_sr(openrisc_arch::SR_OV, flag, "set_ovf");
+    gen_set_sr(openrisc_arch::SR_CY, flag, "set_cy");
+    return builder->CreateTrunc(result, builder->getInt32Ty());
 }
 
 void openrisc_vm::start_func(phys_addr_t pc_p){
