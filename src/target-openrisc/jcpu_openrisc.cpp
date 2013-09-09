@@ -319,6 +319,38 @@ bool openrisc_vm::disas_arith(target_ulong insn){
                     jcpu_or_disas_assert(!"Not implemented yet");
                 }
                 return false;
+            case 0x0C:
+                if(op3 == 0){//l.exths
+                    Value *const rega = builder->CreateTrunc(gen_get_reg(rA, "l.exths"), builder->getInt16Ty());
+                    gen_set_reg(rD, builder->CreateSExt(rega, get_reg_type(), "l.exths"));
+                }
+                else if(op3 == 1){//l.extbs
+                    Value *const rega = builder->CreateTrunc(gen_get_reg(rA, "l.extbs"), builder->getInt8Ty());
+                    gen_set_reg(rD, builder->CreateSExt(rega, get_reg_type(), "l.extbs"));
+                }
+                else if(op3 == 2){//l.exthz
+                    Value *const rega = builder->CreateTrunc(gen_get_reg(rA, "l.exthz"), builder->getInt8Ty());
+                    gen_set_reg(rD, builder->CreateZExt(rega, get_reg_type(), "l.exthz"));
+                }
+                else if(op3 == 3){//l.extbz
+                    Value *const rega = builder->CreateTrunc(gen_get_reg(rA, "l.extbz"), builder->getInt8Ty());
+                    gen_set_reg(rD, builder->CreateZExt(rega, get_reg_type(), "l.extbz"));
+                }
+                else{
+                    jcpu_or_disas_assert(!"Not implemented yet");
+                }
+                return false;
+            case 0x0D:
+                if(op3 == 0){//l.extws
+                    gen_set_reg(rD, gen_get_reg(rA, "l.extws"));
+                }
+                else if(op3 == 1){//l.extwz
+                    gen_set_reg(rD, gen_get_reg(rA, "l.extwz"));
+                }
+                else{
+                    jcpu_or_disas_assert(!"Not implemented yet");
+                }
+                return false;
             case 0x0E: //l.cmov
                 {
                     Value *const flag = builder->CreateTrunc(builder->CreateAShr(gen_get_reg(openrisc_arch::REG_SR), gen_const(openrisc_arch::SR_F)), IntegerType::get(*context, 1));
