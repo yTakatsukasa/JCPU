@@ -20,7 +20,7 @@ DEBUGGER_CMD		:= gdb --args
 CXXFLAGS			:= -g -O0 -Wall -fexceptions -MD # -std=c++11
 else
 DEBUGGER_CMD		:=
-CXXFLAGS			:= -g -O3 -Wall -fexceptions # -std=c++11
+CXXFLAGS			:= -g -O3 -Wall -fexceptions -MD # -std=c++11
 endif
 CFLAGS				:= $(CXXFLAGS)
 LIB_DIRS			:=
