@@ -151,8 +151,8 @@ void openrisc_vm::get_reg_value(std::vector<uint64_t> &regs)const{
     for(unsigned int i = 0; i < 32; ++i){
         regs.push_back(get_reg_func(i));
     }
-    //regs.push_back(get_reg_func(openrisc_arch::REG_PC));
-    regs.push_back(get_reg_func(openrisc_arch::REG_PNEXT_PC));
+    regs.push_back(get_reg_func(openrisc_arch::REG_PC));
+    //regs.push_back(get_reg_func(openrisc_arch::REG_PNEXT_PC));
 }
 
 void openrisc_vm::set_reg_value(unsigned int reg_idx, uint64_t reg_val){
@@ -691,12 +691,13 @@ gdb::gdb_target_if::run_state_e openrisc_vm::step_exec(){
 
     const target_ulong sr = get_reg_func(openrisc_arch::REG_SR);
     if(irq_status && (sr & (1U << openrisc_arch::SR_IEE)) == 0){//jump to exception handler
-        set_reg_func(openrisc_arch::REG_EPCR0, get_reg_func(openrisc_arch::REG_PNEXT_PC));
+        set_reg_func(openrisc_arch::REG_EPCR0, pc);
         set_reg_func(openrisc_arch::REG_PNEXT_PC, openrisc_arch::exception_vector[openrisc_arch::EXC_IRQ]);
         set_reg_func(openrisc_arch::REG_SR, sr | (1U << openrisc_arch::SR_IEE));
         pc = virt_addr_t(openrisc_arch::exception_vector[openrisc_arch::EXC_IRQ]);
     }
     const break_point *const nearest = bp_man.find_nearest(pc);
+    if(nearest && nearest->get_pc() == pc) return RUN_STAT_BREAK;
     const phys_addr_t pc_p = code_v2p(pc);
     bb_man.invalidate(pc_p, pc_p + phys_addr_t(4));
     const basic_block *const bb = bb_man.exists_by_start_addr(pc_p) ? bb_man.find_by_start_addr(pc_p) : disas(pc, 1, nearest);
@@ -705,7 +706,7 @@ gdb::gdb_target_if::run_state_e openrisc_vm::step_exec(){
     dump_regs();
 #endif
     total_icount += bb->get_icount();
-    return (nearest && nearest->get_pc() == pc) ? RUN_STAT_BREAK : RUN_STAT_NORMAL;
+    return RUN_STAT_NORMAL;
 }
 
 void openrisc_vm::dump_regs()const{
