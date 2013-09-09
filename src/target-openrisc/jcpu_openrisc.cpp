@@ -268,15 +268,29 @@ bool openrisc_vm::disas_arith(target_ulong insn){
                     gen_set_reg(rD, result);
                 }
                 return false;
+            case 0x01:
+                {
+                    Value *c = builder->CreateAShr(gen_get_reg(openrisc_arch::REG_SR), gen_const(openrisc_arch::SR_CY), "carry");
+                    c = builder->CreateZExt(c, builder->getInt64Ty());
+                    Value *a = builder->CreateSExt(gen_get_reg(rA), builder->getInt64Ty());
+                    a = builder->CreateAdd(c, a);
+                    Value *const result = gen_arith_code_with_ovf_check(a, gen_get_reg(rB), &vm::ir_builder_wrapper::CreateAdd, "l.addc");
+                    gen_set_reg(rD, result);
+                    return false;
+                }
+                return false;
             case 0x02://l.sub rD = rA - rB, SR[CY] = unsigned overflow(carry), SR[OV] = signed overflow
                 gen_set_reg(rD, builder->CreateSub(gen_get_reg(rA), gen_get_reg(rB), "l.sub"));
                 //FIXME overflow
                 return false;
-            case 0x03: //l.and rD = rA | rB
-                gen_set_reg(rD, builder->CreateAnd(gen_get_reg(rA, "l.or_A"), gen_get_reg(rB, "l.or_B"), "l.or"));
+            case 0x03: //l.and rD = rA & rB
+                gen_set_reg(rD, builder->CreateAnd(gen_get_reg(rA, "l.and_A"), gen_get_reg(rB, "l.and_B"), "l.and"));
                 return false;
             case 0x04: //l.or rD = rA | rB
                 gen_set_reg(rD, builder->CreateOr(gen_get_reg(rA, "l.or_A"), gen_get_reg(rB, "l.or_B"), "l.or"));
+                return false;
+            case 0x05: //l.xor rD = rA ^ rB
+                gen_set_reg(rD, builder->CreateXor(gen_get_reg(rA, "l.xor_A"), gen_get_reg(rB, "l.xor_B"), "l.xor"));
                 return false;
             case 0x08:
                 if(op3 == 0x00){//l.sll rD = rA << rB[4:0]
@@ -286,11 +300,30 @@ bool openrisc_vm::disas_arith(target_ulong insn){
                 }
                 else if(op3 == 0x01){//l.srl rD = rA >> rB[4:0]
                     Value *const rega = gen_get_reg(rA, "l.srl_A");
-                    Value *const regb = builder->CreateAnd(gen_get_reg(rB, "l.sll_B"), gen_const(0x1F), "l.sll_B[4:0]");
+                    Value *const regb = builder->CreateAnd(gen_get_reg(rB, "l.srl_B"), gen_const(0x1F), "l.srl_B[4:0]");
                     gen_set_reg(rD, builder->CreateLShr(rega, regb, "l.srl"));
+                }
+                else if(op3 == 0x02){//l.sra rD = rA >> rB[4:0]
+                    Value *const rega = gen_get_reg(rA, "l.sra_A");
+                    Value *const regb = builder->CreateAnd(gen_get_reg(rB, "l.sra_B"), gen_const(0x1F), "l.sra_B[4:0]");
+                    gen_set_reg(rD, builder->CreateAShr(rega, regb, "l.sra"));
+                }
+                else if(op3 == 0x03){//l.ror rD = rA >> rB[4:0]
+                    Value *const rega = gen_get_reg(rA, "l.ror_A");
+                    Value *const regb = builder->CreateAnd(gen_get_reg(rB, "l.ror_B"), gen_const(0x1F), "l.ror_B[4:0]");
+                    Value *result = builder->CreateLShr(rega, regb, "l.ror");
+                    result = builder->CreateOr(result, builder->CreateShl(rega, builder->CreateSub(gen_const(openrisc_arch::reg_bit_width), regb)));
+                    gen_set_reg(rD, result);
                 }
                 else{
                     jcpu_or_disas_assert(!"Not implemented yet");
+                }
+                return false;
+            case 0x0E: //l.cmov
+                {
+                    Value *const flag = builder->CreateTrunc(builder->CreateAShr(gen_get_reg(openrisc_arch::REG_SR), gen_const(openrisc_arch::SR_F)), IntegerType::get(*context, 1));
+                    Value *const val = builder->CreateSelect(flag, gen_get_reg(rA), gen_get_reg(rB), "l.cmov");
+                    gen_set_reg(rD, val);
                 }
                 return false;
             default:
@@ -301,10 +334,33 @@ bool openrisc_vm::disas_arith(target_ulong insn){
     else if(op2 == 3){
         switch(op){
             case 0x06: //l.mul rD = rA * rB, SR[OV] = signed overflow
-                gen_set_reg(rD, builder->CreateMul(gen_get_reg(rA, "l.mul_A"), gen_get_reg(rB, "lmul_B"), "l.mul"));
-                //FIXME Overflow
+                {
+                    Value *const result = gen_arith_code_with_ovf_check(gen_get_reg(rA, "l.mul_A"), gen_get_reg(rB, "lmul_B"), &vm::ir_builder_wrapper::CreateMul, "l.mul");
+                    gen_set_reg(rD, result);
+                }
                 return false;
-
+            case 0x09: //l.div
+                {
+                    Value *const result = gen_arith_code_with_ovf_check(gen_get_reg(rA, "l.div_A"), gen_get_reg(rB, "ldiv_B"), &vm::ir_builder_wrapper::CreateSDiv, "l.div");
+                    gen_set_reg(rD, result);//FIXME if rB==0, set CY
+                }
+                return false;
+            case 0x0A: //l.divu
+                {
+                    Value *const a = builder->CreateZExt(gen_get_reg(rA, "l.divu_A"), builder->getInt64Ty());
+                    Value *const b = builder->CreateZExt(gen_get_reg(rA, "l.divu_B"), builder->getInt64Ty());
+                    Value *const result = gen_arith_code_with_ovf_check(a, b, &vm::ir_builder_wrapper::CreateUDiv, "l.divu");
+                    gen_set_reg(rD, result);//FIXME if rB==0, set CY
+                }
+                return false;
+            case 0x0B: //l.mulu
+                {
+                    Value *const a = builder->CreateZExt(gen_get_reg(rA, "l.mulu_A"), builder->getInt64Ty());
+                    Value *const b = builder->CreateZExt(gen_get_reg(rA, "l.mulu_B"), builder->getInt64Ty());
+                    Value *const result = gen_arith_code_with_ovf_check(a, b, &vm::ir_builder_wrapper::CreateMul, "l.mulu");
+                    gen_set_reg(rD, result);
+                }
+                return false;
             default:
                 jcpu_or_disas_assert(!"Not implemented yet");
                 break;
