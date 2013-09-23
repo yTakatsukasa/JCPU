@@ -85,6 +85,8 @@ class openrisc_vm : public vm::jcpu_vm_base<openrisc_arch>{
 
     bool irq_status;
 
+    llvm::Value *gen_get_reg(openrisc_arch::reg_e, const char * = "")const JCPU_OVERRIDE;
+    void gen_set_reg(openrisc_arch::reg_e, llvm::Value *)const JCPU_OVERRIDE;
     bool disas_insn(virt_addr_t, int *);
     bool disas_arith(target_ulong);
     bool disas_logical(target_ulong);
@@ -159,6 +161,16 @@ void openrisc_vm::get_reg_value(std::vector<uint64_t> &regs)const{
 void openrisc_vm::set_reg_value(unsigned int reg_idx, uint64_t reg_val){
     jcpu_assert(reg_idx < 32 + 1);
     set_reg_func(reg_idx, reg_val);
+}
+
+llvm::Value *openrisc_vm::gen_get_reg(openrisc_arch::reg_e reg, const char *nm)const{
+    return reg == openrisc_arch::REG_GR00 ? gen_const(0) : jcpu_vm_base<openrisc_arch>::gen_get_reg(reg, nm);
+}
+
+void openrisc_vm::gen_set_reg(openrisc_arch::reg_e reg, llvm::Value *val)const{
+    if(reg != openrisc_arch::REG_GR00){
+        jcpu_vm_base<openrisc_arch>::gen_set_reg(reg, val);
+    }
 }
 
 bool openrisc_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
