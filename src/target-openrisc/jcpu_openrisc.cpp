@@ -164,12 +164,12 @@ void openrisc_vm::set_reg_value(unsigned int reg_idx, uint64_t reg_val){
 }
 
 llvm::Value *openrisc_vm::gen_get_reg(openrisc_arch::reg_e reg, const char *nm)const{
-    return reg == openrisc_arch::REG_GR00 ? gen_const(0) : jcpu_vm_base<openrisc_arch>::gen_get_reg(reg, nm);
+    return reg == openrisc_arch::REG_GR00 ? gen_const(0) : vm::jcpu_vm_base<openrisc_arch>::gen_get_reg(reg, nm);
 }
 
 void openrisc_vm::gen_set_reg(openrisc_arch::reg_e reg, llvm::Value *val)const{
     if(reg != openrisc_arch::REG_GR00){
-        jcpu_vm_base<openrisc_arch>::gen_set_reg(reg, val);
+        vm::jcpu_vm_base<openrisc_arch>::gen_set_reg(reg, val);
     }
 }
 
