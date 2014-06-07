@@ -85,8 +85,8 @@ class openrisc_vm : public vm::jcpu_vm_base<openrisc_arch>{
 
     bool irq_status;
 
-    llvm::Value *gen_get_reg(openrisc_arch::reg_e, const char * = "")const JCPU_OVERRIDE;
-    void gen_set_reg(openrisc_arch::reg_e, llvm::Value *)const JCPU_OVERRIDE;
+    llvm::Value *gen_get_reg(openrisc_arch::reg_e, const char * = "")const ;
+    void gen_set_reg(openrisc_arch::reg_e, llvm::Value *)const ;
     bool disas_insn(virt_addr_t, int *);
     bool disas_arith(target_ulong);
     bool disas_logical(target_ulong);
