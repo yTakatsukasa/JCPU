@@ -7,7 +7,7 @@
 #include "gdbserver.h"
 #include "jcpu_cortexm0.h"
 
-static const int CORTEXM0_DEBUG_LEVEL = 0;
+static const int CORTEXM0_DEBUG_LEVEL = 3;
 
 namespace {
 #define jcpu_m0_disas_assert(cond) do{if(!(cond)){ \
@@ -89,8 +89,25 @@ void cortexm0_vm::set_reg_value(unsigned int reg_idx, uint64_t reg_val){
     set_reg_func(reg_idx, reg_val);
 }
 
-bool cortexm0_vm::disas_insn(virt_addr_t, int *){
-    jcpu_assert(!"Not implemented yet");
+bool cortexm0_vm::disas_insn(virt_addr_t pc_v, int *insn_depth){
+    ++(*insn_depth);
+    const phys_addr_t pc = code_v2p(pc_v);
+    struct push_and_pop_pc{
+        cortexm0_vm &vm;
+        push_and_pop_pc(cortexm0_vm &vm, virt_addr_t pc_v, phys_addr_t pc_p) : vm(vm){
+            vm.processing_pc.push(std::make_pair(pc_v, pc_p));
+        }
+        ~push_and_pop_pc(){
+            vm.processing_pc.pop();
+        }
+    } push_and_pop_pc(*this, pc_v, pc);
+    const target_ulong insn = ext_ifs.mem_read(pc, 2);
+    if(CORTEXM0_DEBUG_LEVEL > 2){
+        builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
+    }
+    return true;
+    jcpu_assert(!"Never comes here");
+    return false;//suppress warning
 }
 
 void cortexm0_vm::start_func(phys_addr_t pc_p){
@@ -188,7 +205,7 @@ cortexm0_vm::cortexm0_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<cortexm0_arch>(ifs
     Initializer.reserve(num_regs);
 
     for(unsigned int i = 0; i < num_regs; ++i){
-        const unsigned int reg_init_val = 0;//Reser vector for PC?
+        const unsigned int reg_init_val = i == cortexm0_arch::REG_PC ? 0x1000 : 0;//Reser vector for PC?
         llvm::ConstantInt *const ivc = gen_const(reg_init_val);
         Initializer.push_back(ivc);
     }
