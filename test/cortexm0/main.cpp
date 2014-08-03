@@ -27,7 +27,8 @@ class dummy_mem : public jcpu::jcpu_ext_if{
 #else
         FILE *const fp = std::fopen(fn, "r");
         const size_t copy_unit = 4096;
-        for(size_t copied = 0; tmp_mem.size() > copied + copy_unit &&  std::fread(&tmp_mem[copied / sizeof(uint32_t)], copy_unit, 1, fp) == 1; copied += copy_unit){}
+        const size_t copy_offset = 0x1000;
+        for(size_t copied = 0; tmp_mem.size() > copied + copy_unit &&  std::fread(&tmp_mem[(copy_offset + copied) / sizeof(uint32_t)], copy_unit, 1, fp) == 1; copied += copy_unit){}
         std::fclose(fp);
 #endif
     }
@@ -53,9 +54,9 @@ class dummy_mem : public jcpu::jcpu_ext_if{
         }
         else if(size == 2){
             if(addr % 2){std::cerr << "Not aligned" << std::endl; abort();}
-            switch(addr / 2){
-                case 0: v >>= 16; break;
-                case 2: v >>=  0; break;
+            switch(addr % 4){
+                case 0: v >>=  0; break;
+                case 2: v >>= 16; break;
                 default:abort();
             }
             v &= 0xFFFF;
@@ -67,13 +68,13 @@ class dummy_mem : public jcpu::jcpu_ext_if{
                 v |= mem_read(addr + i, 1);
             }
         }
-#if 0
+#if 1
         std::cout << "mem_read(" << std::hex << addr << ", 0x" << size << ")" << " " << v << std::endl;
 #endif
         return v;
     }
     virtual void mem_write(uint64_t addr, unsigned int size, uint64_t val)MAIN_CPP_OVERRIDE{
-#if 0
+#if 1
         std::cout << "mem_write(" << std::hex << addr
             << ", 0x" << size
             << ", 0x" << val
