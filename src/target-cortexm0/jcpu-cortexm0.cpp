@@ -42,7 +42,7 @@ struct cortexm0_arch{
         REG_R4, REG_R5, REG_R6, REG_R7,
         REG_R8, REG_R9, REG_R10, REG_R11,
         REG_R12,
-        REG_R13, REG_MSP = REG_R13, REG_PSP = REG_R13,
+        REG_R13, REG_MSP = REG_R13, REG_PSP = REG_R13, REG_SP=REG_R13,
         REG_R14, REG_LR = REG_R14,
         REG_R15, REG_PC = REG_R15,
         //REG_PRIMASK, REG_CONTROL,
@@ -63,6 +63,7 @@ class cortexm0_vm : public vm::jcpu_vm_base<cortexm0_arch>{
     //bool irq_status;
 
     bool disas_insn(virt_addr_t, int *);
+    bool disas_misc_insn(target_ulong);
     virtual void start_func(phys_addr_t) JCPU_OVERRIDE;
     virtual run_state_e step_exec() JCPU_OVERRIDE;
     phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);}
@@ -102,12 +103,79 @@ bool cortexm0_vm::disas_insn(virt_addr_t pc_v, int *insn_depth){
         }
     } push_and_pop_pc(*this, pc_v, pc);
     const target_ulong insn = ext_ifs.mem_read(pc, 2);
+    const target_ulong kind = (insn >> 10) & 0x3F;
+    std::cout << "insn:" << std::hex << insn << " kind:" << kind << std::endl;
+    if((kind >> 4) == 0){//shift, add, subtract, move, compare
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if(kind == 0x10){//data processing
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if(kind == 0x11){//special data instructions and branch and exchange
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if(kind == 0x12 || kind == 0x13){//load from leteral pool
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if((kind&0x3C) == 0x14 || (kind & 0x38) == 0x18 || (kind & 0x38) == 0x20){//load/store single data item
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if(kind == 0x28 || kind == 0x29){//generate pc-relative address
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if(kind == 0x2A || kind == 0x2B){//generate cp-relative address
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if((kind&0x3C) == 0x2C){//miscellaneous insn
+        return disas_misc_insn(insn);
+    }
+    else if(kind == 0x30 || kind == 0x31){//store multiple registers
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if(kind == 0x32 || kind == 0x33){//load multiple registers
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if((kind & 0x3C) == 0x34){//conditional branch and svc
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else if(kind == 0x38 || kind == 0x39){//unconditional branch
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+    else{
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+
     if(CORTEXM0_DEBUG_LEVEL > 2){
         builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
     }
     return true;
     jcpu_assert(!"Never comes here");
     return false;//suppress warning
+}
+
+bool cortexm0_vm::disas_misc_insn(target_ulong insn)
+{
+    const target_ulong opcode = bit_sub<5, 7>(insn);
+    std::cout << "opcode:" << opcode << std::endl;
+    if((opcode & 0x70) == 0x20){//Push
+        const target_ulong regs = bit_sub<0, 7>(insn) | (bit_sub<8,1>(insn) << 14);
+        llvm::Value *sp = gen_get_reg(cortexm0_arch::REG_SP, "sp");
+        for(int i = 14; i >= 0; --i)
+        {
+            if((regs >> i) & 1U)
+            {
+                sp = builder->CreateSub(sp, gen_const(4), "decremented_sp");
+                gen_sw(gen_get_reg(static_cast<cortexm0_arch::reg_e>(i), "to_be_pushed"), sizeof(target_ulong), sp);
+            }
+        }
+        gen_set_reg(cortexm0_arch::REG_SP, sp);
+        return false;
+    }
+    else
+    {
+        jcpu_m0_disas_assert(!"Not implemented yet");
+    }
+
 }
 
 void cortexm0_vm::start_func(phys_addr_t pc_p){
@@ -160,7 +228,7 @@ const basic_block *cortexm0_vm::disas(virt_addr_t start_pc_, int max_insn, const
     unsigned int num_insn = 0;
     if(max_insn < 0){
         bool done = false;
-        for(pc = start_pc; !done; pc += 4){
+        for(pc = start_pc; !done; pc += 2){
             if(bp && bp->get_pc() == pc){
                 gen_set_reg(cortexm0_arch::REG_PNEXT_PC, gen_const(pc));
                 break;
@@ -175,7 +243,7 @@ const basic_block *cortexm0_vm::disas(virt_addr_t start_pc_, int max_insn, const
         int insn_depth = 0;
         const bool done = disas_insn(start_pc_, &insn_depth);
         num_insn += insn_depth;
-        pc = start_pc + (done ? 8 : 4);
+        pc = start_pc + (done ? 4 : 2);
         if(done){
             gen_set_reg(cortexm0_arch::REG_PC, gen_get_reg(cortexm0_arch::REG_PNEXT_PC));
         }
@@ -185,7 +253,7 @@ const basic_block *cortexm0_vm::disas(virt_addr_t start_pc_, int max_insn, const
         }
     }
     llvm::Function *const f = end_func();
-    const phys_addr_t end_pc(pc - 4);
+    const phys_addr_t end_pc(pc - 2);
     jcpu_assert(start_pc <= end_pc);
     basic_block *const bb = new basic_block(start_pc, end_pc, f, ee, num_insn);
     bb_man.add(bb);
