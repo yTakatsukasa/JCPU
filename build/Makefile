@@ -5,6 +5,8 @@ EXECOPT 			:=
 INCLUDE_DIRS		:= ../include
 USE_GCC				:= 1
 LLVM_CONFIG			?= llvm-config
+LLVM_VERSION		:= $(shell $(LLVM_CONFIG) --version | sed -e s/svn//)
+
 ifeq ($(USE_GCC),1)
 CC					:= gcc
 CXX					:= g++
@@ -23,6 +25,14 @@ DEBUGGER_CMD		:=
 CXXFLAGS			:= -g -O3 -Wall -fexceptions -MD # -std=c++11
 endif
 CFLAGS				:= $(CXXFLAGS)
+
+NEED_CXX11			:= $(shell expr $(LLVM_VERSION) '>=' 3.5)
+ifeq ($(NEED_CXX11),1)
+CXXFLAGS			:= -std=c++11
+else
+CXXFLAGS			:= -std=c++03
+endif
+
 LIB_DIRS			:=
 LIBS				:= dl
 LDFLAGS             := $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIBS)) $(shell $(LLVM_CONFIG) --ldflags --libs) -Wl,-rpath=$(dir $(shell which clang))/../lib64
