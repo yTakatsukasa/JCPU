@@ -12,7 +12,7 @@
 #include <llvm/Instructions.h> //LoadInst
 #include <llvm/IRBuilder.h>
 #include <llvm/Module.h>
-#elif LLVM_VERSION_MINOR == 3 || LLVM_VERSION_MINOR==5 //3.3, 3.4, 3.5
+#elif 3 <= LLVM_VERSION_MINOR && LLVM_VERSION_MINOR <= 6 //3.3, 3.4, 3.5, 3.6
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Instructions.h> //LoadInst
 #include <llvm/IR/IRBuilder.h>
@@ -21,13 +21,15 @@
 #error "Not supported LLVM version"
 #endif
 
-
+#if LLVM_VERSION_MINOR <= 5
 #include <llvm/ExecutionEngine/JIT.h> 
+#else //>= 3.6
+#include <llvm/ExecutionEngine/MCJIT.h> 
+#endif
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/PrettyStackTrace.h>
 #include <llvm/Support/Signals.h>
 #include <llvm/Support/Debug.h> //EnableDebugBuffering
-#include <llvm/ExecutionEngine/JIT.h> 
 #include <llvm/PassManager.h> //PassManager
 #include <llvm/Support/raw_ostream.h> //outs()
 

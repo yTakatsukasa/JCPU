@@ -427,8 +427,14 @@ jcpu_vm_base<ARCH>::jcpu_vm_base(jcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(JCPU
     context = &llvm::getGlobalContext();
     builder = new ir_builder_wrapper(*this, *context);
     mod = new llvm::Module("openrisc module", *context);
+#if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 5)
     llvm::EngineBuilder ebuilder(mod);
+#else //>=3.6
+    llvm::EngineBuilder ebuilder{std::unique_ptr<llvm::Module>(mod)};
+#endif
+#if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 5)
     ebuilder.setUseMCJIT(true);
+#endif
     ebuilder.setEngineKind(llvm::EngineKind::JIT);
     ee = ebuilder.create();
     mem_region = 0;
