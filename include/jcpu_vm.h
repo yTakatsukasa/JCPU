@@ -438,7 +438,11 @@ jcpu_vm_base<ARCH>::jcpu_vm_base(jcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(JCPU
 template<typename ARCH>
 void jcpu_vm_base<ARCH>::dump_ir()const{
     llvm::PassManager pm;
+#if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5) || LLVM_VERSION_MAJOR >= 4
+    pm.add(createPrintModulePass( llvm::outs()));
+#else // version <= 3.4
     pm.add(createPrintModulePass(&llvm::outs()));
+#endif
     pm.run(*mod);
 }
 

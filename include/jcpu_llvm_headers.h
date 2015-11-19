@@ -12,7 +12,7 @@
 #include <llvm/Instructions.h> //LoadInst
 #include <llvm/IRBuilder.h>
 #include <llvm/Module.h>
-#elif LLVM_VERSION_MINOR == 3 //3.3
+#elif LLVM_VERSION_MINOR == 3 || LLVM_VERSION_MINOR==5 //3.3, 3.4, 3.5
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Instructions.h> //LoadInst
 #include <llvm/IR/IRBuilder.h>
@@ -27,12 +27,18 @@
 #include <llvm/Support/PrettyStackTrace.h>
 #include <llvm/Support/Signals.h>
 #include <llvm/Support/Debug.h> //EnableDebugBuffering
-#include <llvm/Analysis/Verifier.h> //verifyModule
-
 #include <llvm/ExecutionEngine/JIT.h> 
 #include <llvm/PassManager.h> //PassManager
 #include <llvm/Support/raw_ostream.h> //outs()
+
+#if LLVM_VERSION_MINOR <= 4
+#include <llvm/Analysis/Verifier.h> //verifyModule
 #include <llvm/Assembly/PrintModulePass.h> //PrintModulePass
+#else
+#include <llvm/IR/Verifier.h> //verifyModule
+#include <llvm/IR/IRPrintingPasses.h> //PrintModulePass
+#endif
+
 
 
 
