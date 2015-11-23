@@ -2,6 +2,24 @@
 
 namespace jcpu{
 namespace vm{
+
+namespace{
+inline llvm::GetElementPtrInst *
+CreateGetElementPtrInst(llvm::Value *Ptr, llvm::ArrayRef<llvm::Value *> IdxList,
+        const char *NameStr, llvm::BasicBlock *InsertAtEnd, llvm::Module &mod)
+{
+#if JCPU_LLVM_VERSION_LT(3, 7)
+    (void) mod;
+    return llvm::GetElementPtrInst::Create(Ptr, IdxList, NameStr, InsertAtEnd);
+#else
+    llvm::Type *const pointee_type = llvm::Type::getPrimitiveType(mod.getContext(), llvm::Type::TypeID::ArrayTyID);
+    return llvm::GetElementPtrInst::Create(pointee_type, Ptr, IdxList, NameStr, InsertAtEnd);
+#endif
+}
+
+}
+
+
 //FIXME set register bit width
 void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsigned int address_space) {
     using namespace llvm;
@@ -61,7 +79,7 @@ void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsi
         std::vector<Value*> ptr_9_indices;
         ptr_9_indices.push_back(const_int64_6);
         ptr_9_indices.push_back(int64_8);
-        Instruction* ptr_9 = GetElementPtrInst::Create(gvar_array_regs, ptr_9_indices, "", label_7);
+        Instruction *ptr_9 = CreateGetElementPtrInst(gvar_array_regs, ptr_9_indices, "", label_7, *mod);
         LoadInst* int32_10 = new LoadInst(ptr_9, "", false, label_7);
         int32_10->setAlignment(4);
         ReturnInst::Create(mod->getContext(), int32_10, label_7);
@@ -83,7 +101,7 @@ void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsi
         std::vector<Value*> ptr_15_indices;
         ptr_15_indices.push_back(const_int64_6);
         ptr_15_indices.push_back(int64_14);
-        Instruction* ptr_15 = GetElementPtrInst::Create(gvar_array_regs, ptr_15_indices, "", label_13);
+        Instruction* ptr_15 = CreateGetElementPtrInst(gvar_array_regs, ptr_15_indices, "", label_13, *mod);
         StoreInst* void_16 = new StoreInst(int32_val, ptr_15, false, label_13);
         void_16->setAlignment(4);
         ReturnInst::Create(mod->getContext(), label_13);
@@ -302,7 +320,7 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
         CastInst* ptr_34 = new BitCastInst(ptr_33, PointerTy_12, "", label_32);
         LoadInst* ptr_35 = new LoadInst(ptr_34, "", false, label_32);
         ptr_35->setAlignment(8);
-        GetElementPtrInst* ptr_36 = GetElementPtrInst::Create(ptr_35, const_int64_17, "", label_32);
+        GetElementPtrInst* ptr_36 = CreateGetElementPtrInst(ptr_35, const_int64_17, "", label_32, *mod);
         LoadInst* ptr_37 = new LoadInst(ptr_36, "", false, label_32);
         ptr_37->setAlignment(8);
         std::vector<Value*> void_38_params;
@@ -334,7 +352,7 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
         CastInst* ptr_44 = new BitCastInst(ptr_43, PointerTy_7, "", label_42);
         LoadInst* ptr_45 = new LoadInst(ptr_44, "", false, label_42);
         ptr_45->setAlignment(8);
-        GetElementPtrInst* ptr_46 = GetElementPtrInst::Create(ptr_45, const_int64_18, "", label_42);
+        GetElementPtrInst* ptr_46 = CreateGetElementPtrInst(ptr_45, const_int64_18, "", label_42, *mod);
         LoadInst* ptr_47 = new LoadInst(ptr_46, "", false, label_42);
         ptr_47->setAlignment(8);
         std::vector<Value*> int64_48_params;
@@ -367,7 +385,7 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
         CastInst* ptr_55 = new BitCastInst(ptr_54, PointerTy_12, "", label_53);
         LoadInst* ptr_56 = new LoadInst(ptr_55, "", false, label_53);
         ptr_56->setAlignment(8);
-        GetElementPtrInst* ptr_57 = GetElementPtrInst::Create(ptr_56, const_int64_19, "", label_53);
+        GetElementPtrInst* ptr_57 = CreateGetElementPtrInst(ptr_56, const_int64_19, "", label_53, *mod);
         LoadInst* ptr_58 = new LoadInst(ptr_57, "", false, label_53);
         ptr_58->setAlignment(8);
         std::vector<Value*> void_59_params;

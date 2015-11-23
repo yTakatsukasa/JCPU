@@ -12,7 +12,7 @@
 #include <llvm/Instructions.h> //LoadInst
 #include <llvm/IRBuilder.h>
 #include <llvm/Module.h>
-#elif 3 <= LLVM_VERSION_MINOR && LLVM_VERSION_MINOR <= 6 //3.3, 3.4, 3.5, 3.6
+#elif 3 <= LLVM_VERSION_MINOR && LLVM_VERSION_MINOR <= 7 //3.3, 3.4, 3.5, 3.6
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Instructions.h> //LoadInst
 #include <llvm/IR/IRBuilder.h>
@@ -26,11 +26,15 @@
 #else //>= 3.6
 #include <llvm/ExecutionEngine/MCJIT.h> 
 #endif
+#if LLVM_VERSION_MINOR <= 6
+#include <llvm/PassManager.h>          //PassManager
+#else
+#include <llvm/IR/LegacyPassManager.h> //PassManager
+#endif
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/PrettyStackTrace.h>
 #include <llvm/Support/Signals.h>
 #include <llvm/Support/Debug.h> //EnableDebugBuffering
-#include <llvm/PassManager.h> //PassManager
 #include <llvm/Support/raw_ostream.h> //outs()
 
 #if LLVM_VERSION_MINOR <= 4
@@ -41,6 +45,10 @@
 #include <llvm/IR/IRPrintingPasses.h> //PrintModulePass
 #endif
 
+#define JCPU_LLVM_VERSION_LE(major, minor) ((LLVM_VERSION_MAJOR == major && LLVM_VERSION_MINOR <= minor) || LLVM_VERSION_MAJOR < major)
+#define JCPU_LLVM_VERSION_LT(major, minor) ((LLVM_VERSION_MAJOR == major && LLVM_VERSION_MINOR  < minor) || LLVM_VERSION_MAJOR < major)
+#define JCPU_LLVM_VERSION_GE(major, minor) ((LLVM_VERSION_MAJOR == major && LLVM_VERSION_MINOR >= minor) || LLVM_VERSION_MAJOR > major)
+#define JCPU_LLVM_VERSION_GT(major, minor) ((LLVM_VERSION_MAJOR == major && LLVM_VERSION_MINOR  > minor) || LLVM_VERSION_MAJOR > major)
 
 
 

@@ -53,7 +53,12 @@ llvm::CallInst *ir_builder_wrapper::CreateCall(llvm::Function *func, const char 
     else{
         std::string str(nm);
         set_pc_str(str);
+#if JCPU_LLVM_VERSION_LT(3, 7)
         return builder->CreateCall(func, str.c_str());
+#else
+        std::vector<llvm::Value*> args;
+        return builder->CreateCall(func, args, str.c_str());
+#endif
     }
 }
 
@@ -70,23 +75,57 @@ llvm::CallInst *ir_builder_wrapper::CreateCall(llvm::Function *func, llvm::Value
 
 llvm::CallInst *ir_builder_wrapper::CreateCall2(llvm::Function *func, llvm::Value *arg0, llvm::Value *arg1, const char *nm)const{
     if(func->getReturnType()->isVoidTy()){
+#if JCPU_LLVM_VERSION_LT(3, 7)
         return builder->CreateCall2(func, arg0, arg1);
+#else
+        std::vector<llvm::Value*> args;
+        args.reserve(2);
+        args.push_back(arg0);
+        args.push_back(arg1);
+        return builder->CreateCall(func, args);
+#endif
     }
     else{
         std::string str(nm);
         set_pc_str(str);
+#if JCPU_LLVM_VERSION_LT(3, 7)
         return builder->CreateCall2(func, arg0, arg1, str.c_str());
+#else
+        std::vector<llvm::Value*> args;
+        args.reserve(2);
+        args.push_back(arg0);
+        args.push_back(arg1);
+        return builder->CreateCall(func, args, str.c_str());
+#endif
     }
 }
 
 llvm::CallInst *ir_builder_wrapper::CreateCall3(llvm::Function *func, llvm::Value *arg0, llvm::Value *arg1, llvm::Value *arg2, const char *nm)const{
     if(func->getReturnType()->isVoidTy()){
+#if JCPU_LLVM_VERSION_LT(3, 7)
         return builder->CreateCall3(func, arg0, arg1, arg2);
+#else
+        std::vector<llvm::Value*> args;
+        args.reserve(3);
+        args.push_back(arg0);
+        args.push_back(arg1);
+        args.push_back(arg2);
+        return builder->CreateCall(func, args);
+#endif
     }
     else{
         std::string str(nm);
         set_pc_str(str);
+#if JCPU_LLVM_VERSION_LT(3, 7)
         return builder->CreateCall3(func, arg0, arg1, arg2, str.c_str());
+#else
+        std::vector<llvm::Value*> args;
+        args.reserve(3);
+        args.push_back(arg0);
+        args.push_back(arg1);
+        args.push_back(arg2);
+        return builder->CreateCall(func, args, str.c_str());
+#endif
     }
 }
 

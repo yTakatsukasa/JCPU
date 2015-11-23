@@ -443,7 +443,11 @@ jcpu_vm_base<ARCH>::jcpu_vm_base(jcpu_ext_if &ifs) : ext_ifs(ifs), cur_func(JCPU
 
 template<typename ARCH>
 void jcpu_vm_base<ARCH>::dump_ir()const{
+#if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 7) || LLVM_VERSION_MAJOR >= 4
+    llvm::legacy::PassManager pm;
+#else
     llvm::PassManager pm;
+#endif
 #if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5) || LLVM_VERSION_MAJOR >= 4
     pm.add(createPrintModulePass( llvm::outs()));
 #else // version <= 3.4
