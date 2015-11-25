@@ -1,12 +1,13 @@
-SRC_DIRS			:= ../src $(wildcard ../src/target-*)
-INCLUDE_DIRS		:= ../include
-include Makefile.common
+SRC_DIRS		:= ./
+INCLUDE_DIRS	:= ../../include
+LIB_DIRS		:= ../../build
+LIBS			:= pthread dl jcpu ncurses z 
+include ../../build/Makefile.common
+run.x:$(OBJS)
 
-libjcpu.a:$(OBJS)
-
-%.a:
-	@echo Archiving $@ $(SHOW_MSG)
-	$(SHOW_CMD_LINE) ar cruv $@ $(filter %.o,$^)
+%.x:
+	@echo Linking $@ $(SHOW_MSG)
+	$(SHOW_CMD_LINE) $(CXX)	-o $@ $(filter %.o,$^) $(LDFLAGS)
 
 .%.o:%.cpp
 	@echo Compiling $< $(SHOW_MSG)

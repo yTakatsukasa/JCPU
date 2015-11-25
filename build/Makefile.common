@@ -1,0 +1,51 @@
+V					?= 0
+DEBUG				?= 1
+EXECOPT 			:= 
+USE_GCC				:= 1
+LLVM_CONFIG			?= llvm-config
+LLVM_VERSION		:= $(shell $(LLVM_CONFIG) --version | sed -e s/svn//)
+
+ifeq ($(USE_GCC),1)
+CC					:= gcc
+CXX					:= g++
+CPP					:= cpp
+else
+CC					:= clang 
+CXX					:= clang++
+CPP					:= clang -E
+endif
+CPPFLAGS			:= $(addprefix -I,$(INCLUDE_DIRS)) $(shell $(LLVM_CONFIG) --cppflags)
+ifeq ($(DEBUG),1)
+DEBUGGER_CMD		:= gdb --args
+CXXFLAGS			:= -g -O0 -Wall -fexceptions -MD # -std=c++11
+else
+DEBUGGER_CMD		:=
+CXXFLAGS			:= -g -O3 -Wall -fexceptions -MD # -std=c++11
+endif
+CFLAGS				:= $(CXXFLAGS)
+
+NEED_CXX11			:= $(shell expr $(LLVM_VERSION) '>=' 3.5)
+ifeq ($(NEED_CXX11),1)
+CXXFLAGS			:= -std=c++11
+else
+CXXFLAGS			:= -std=c++03
+endif
+
+#LIB_DIRS			:=
+#LIBS				:= dl
+LDFLAGS             := $(addprefix -L,$(LIB_DIRS)) $(addprefix -l,$(LIBS)) $(shell $(LLVM_CONFIG) --ldflags --libs) -Wl,-rpath=$(dir $(shell which clang))/../lib64
+SRCS				:= $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp $(dir)/*.c))
+OBJS				:= $(addprefix .,$(addsuffix .o,$(basename $(notdir $(SRCS)))))
+
+ifeq ($V,1)
+SHOW_CMD_LINE   := 
+SHOW_MSG        := > /dev/null
+else
+SHOW_CMD_LINE   := @
+SHOW_MSG        :=
+endif
+.PHONY:clean runall
+
+vpath %.cpp $(SRC_DIRS)
+vpath %.c $(SRC_DIRS)
+
