@@ -260,6 +260,17 @@ class jcpu_vm_base : public ::jcpu::vm::jcpu_vm_if, public ::jcpu::gdb::gdb_targ
     virtual run_state_e run() = 0;
     virtual run_state_e step_exec() = 0;
     phys_addr_t code_v2p(virt_addr_t pc){return static_cast<phys_addr_t>(pc);} //FIXME implement MMU
+    template<typename FUNC_PTR>
+    FUNC_PTR get_func_ptr(const char *func_name)
+    {
+        FUNC_PTR func = 0;
+#if JCPU_LLVM_VERSION_LT(3, 6)
+        func = reinterpret_cast<FUNC_PTR>(ee->getPointerToFunction(mod->getFunction(func_name)));
+#else //>= 3.6
+        func = reinterpret_cast<FUNC_PTR>(ee->getFunctionAddress(func_name));
+#endif
+        return func;
+    }
     explicit jcpu_vm_base(jcpu_ext_if &);
     public:
     void dump_ir()const;

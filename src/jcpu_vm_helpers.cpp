@@ -69,7 +69,7 @@ void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsi
     // Function: get_reg (func_get_reg)
     {
         Function::arg_iterator args = func_get_reg->arg_begin();
-        Value* int16_idx = args++;
+        Value* int16_idx = &*(args++);
         int16_idx->setName("idx");
 
         BasicBlock* label_7 = BasicBlock::Create(mod->getContext(), "",func_get_reg,0);
@@ -89,9 +89,9 @@ void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsi
     // Function: set_reg (func_set_reg)
     {
         Function::arg_iterator args = func_set_reg->arg_begin();
-        Value* int16_idx_12 = args++;
+        Value* int16_idx_12 = &*(args++);
         int16_idx_12->setName("idx");
-        Value* int32_val = args++;
+        Value* int32_val = &*(args++);
         int32_val->setName("val");
 
         BasicBlock* label_13 = BasicBlock::Create(mod->getContext(), "",func_set_reg,0);
@@ -260,7 +260,7 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
     // Function: set_mem_access_if (func_set_mem_access_if)
     {
         Function::arg_iterator args = func_set_mem_access_if->arg_begin();
-        Value* ptr_ifs = args++;
+        Value* ptr_ifs = &*(args++);
         ptr_ifs->setName("ifs");
 
         BasicBlock* label_20 = BasicBlock::Create(mod->getContext(), "",func_set_mem_access_if,0);
@@ -275,9 +275,9 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
     // Function: helper_mem_read (func_helper_mem_read)
     {
         Function::arg_iterator args = func_helper_mem_read->arg_begin();
-        Value* int64_addr = args++;
+        Value* int64_addr = &*(args++);
         int64_addr->setName("addr");
-        Value* int32_length = args++;
+        Value* int32_length = &*(args++);
         int32_length->setName("length");
 
         BasicBlock* label_23 = BasicBlock::Create(mod->getContext(), "",func_helper_mem_read,0);
@@ -305,11 +305,11 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
     // Function: helper_mem_write (func_helper_mem_write)
     {
         Function::arg_iterator args = func_helper_mem_write->arg_begin();
-        Value* int64_addr_30 = args++;
+        Value* int64_addr_30 = &*(args++);
         int64_addr_30->setName("addr");
-        Value* int32_length_31 = args++;
+        Value* int32_length_31 = &*(args++);
         int32_length_31->setName("length");
-        Value* int64_val = args++;
+        Value* int64_val = &*(args++);
         int64_val->setName("val");
 
         BasicBlock* label_32 = BasicBlock::Create(mod->getContext(), "",func_helper_mem_write,0);
@@ -339,9 +339,9 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
     // Function: helper_mem_read_debug (func_helper_mem_read_debug)
     {
         Function::arg_iterator args = func_helper_mem_read_debug->arg_begin();
-        Value* int64_addr_40 = args++;
+        Value* int64_addr_40 = &*(args++);
         int64_addr_40->setName("addr");
-        Value* int32_length_41 = args++;
+        Value* int32_length_41 = &*(args++);
         int32_length_41->setName("length");
 
         BasicBlock* label_42 = BasicBlock::Create(mod->getContext(), "",func_helper_mem_read_debug,0);
@@ -370,11 +370,11 @@ void make_mem_access(llvm::Module *mod, unsigned int address_space) {
     // Function: helper_mem_write_debug (func_helper_mem_write_debug)
     {
         Function::arg_iterator args = func_helper_mem_write_debug->arg_begin();
-        Value* int64_addr_50 = args++;
+        Value* int64_addr_50 = &*(args++);
         int64_addr_50->setName("addr");
-        Value* int32_length_51 = args++;
+        Value* int32_length_51 = &*(args++);
         int32_length_51->setName("length");
-        Value* int64_val_52 = args++;
+        Value* int64_val_52 = &*(args++);
         int64_val_52->setName("val");
 
         BasicBlock* label_53 = BasicBlock::Create(mod->getContext(), "",func_helper_mem_write_debug,0);
@@ -489,7 +489,7 @@ void make_debug_func(llvm::Module *mod, unsigned int address_space) {
     // Function: set_jcpu_vm_ptr (func_set_jcpu_vm_ptr)
     {
         Function::arg_iterator args = func_set_jcpu_vm_ptr->arg_begin();
-        Value* ptr_ptr = args++;
+        Value* ptr_ptr = &*(args++);
         ptr_ptr->setName("ptr");
 
         BasicBlock* label_11 = BasicBlock::Create(mod->getContext(), "",func_set_jcpu_vm_ptr,0);

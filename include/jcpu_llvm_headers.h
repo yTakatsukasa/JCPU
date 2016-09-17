@@ -12,7 +12,7 @@
 #include <llvm/Instructions.h> //LoadInst
 #include <llvm/IRBuilder.h>
 #include <llvm/Module.h>
-#elif 3 <= LLVM_VERSION_MINOR && LLVM_VERSION_MINOR <= 7 //3.3, 3.4, 3.5, 3.6
+#elif 3 <= LLVM_VERSION_MINOR && LLVM_VERSION_MINOR <= 8 //3.3, 3.4, 3.5, 3.6, 3.7, 3.8
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Instructions.h> //LoadInst
 #include <llvm/IR/IRBuilder.h>

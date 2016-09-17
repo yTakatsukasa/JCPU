@@ -11,14 +11,6 @@
 
 
 namespace {
-#define jcpu_or_disas_assert(cond) do{if(!(cond)){ \
-    /*dump_ir();*/ \
-    dump_regs(); \
-    llvm::Function *const f = end_func(); \
-    target_ulong (*const func)() = reinterpret_cast<target_ulong (*)()>(ee->getPointerToFunction(f)); \
-    (*func)(); \
-    dump_regs(); \
-    std::cerr << "Failed " << #cond << " at " << __FILE__ << " " << std::dec << __LINE__ << " in " << __PRETTY_FUNCTION__ << std::endl; std::abort();}} while(false)
 
 template<unsigned int bit, unsigned int width, typename T>
 inline T bit_sub(T v){
@@ -96,7 +88,6 @@ riscv_vm::riscv_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<riscv_arch>(ifs)
     const unsigned int address_space = 5;
     const unsigned int bit = sizeof(target_ulong) * 8;
     const unsigned int num_regs = riscv_arch::NUM_REGS;
-    llvm::ArrayType *const ATy = llvm::ArrayType::get(llvm::IntegerType::get(*context, bit), num_regs);
     std::vector<llvm::Constant*> Initializer;
     Initializer.reserve(num_regs);
 
@@ -107,6 +98,7 @@ riscv_vm::riscv_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<riscv_arch>(ifs)
         Initializer.push_back(ivc);
     }
 
+    llvm::ArrayType *const ATy = llvm::ArrayType::get(llvm::IntegerType::get(*context, bit), num_regs);
     llvm::Constant *const init = llvm::ConstantArray::get(ATy, Initializer);
 #if JCPU_LLVM_VERSION_LT(3,6)
     llvm::GlobalVariable *const global_regs = new llvm::GlobalVariable(*mod, ATy, true, llvm::GlobalValue::CommonLinkage, init, "regs", 0, llvm::GlobalVariable::NotThreadLocal, address_space);
@@ -119,15 +111,13 @@ riscv_vm::riscv_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<riscv_arch>(ifs)
     vm::make_mem_access(mod, address_space);
     vm::make_debug_func(mod, address_space);
 
-    set_reg_func = reinterpret_cast<void (*)(uint16_t, target_ulong)>(ee->getPointerToFunction(mod->getFunction("set_reg")));
-    get_reg_func = reinterpret_cast<target_ulong (*)(uint16_t)>(ee->getPointerToFunction(mod->getFunction("get_reg")));
+    set_reg_func = get_func_ptr<void (*)(uint16_t, target_ulong)>("set_reg");
+    get_reg_func = get_func_ptr<target_ulong (*)(uint16_t)>("get_reg");
 
-    void (*const set_mem_access_if)(jcpu_ext_if *) = reinterpret_cast<void(*)(jcpu_ext_if*)>(ee->getPointerToFunction(mod->getFunction("set_mem_access_if")));
+    void (*const set_mem_access_if)(jcpu_ext_if *) = get_func_ptr<void(*)(jcpu_ext_if*)>("set_mem_access_if");
     set_mem_access_if(&ext_ifs);
-    void (*const set_jcpu_vm_ptr)(jcpu_vm_if *) = reinterpret_cast<void(*)(jcpu_vm_if*)>(ee->getPointerToFunction(mod->getFunction("set_jcpu_vm_ptr")));
+    void (*const set_jcpu_vm_ptr)(jcpu_vm_if *) = get_func_ptr<void(*)(jcpu_vm_if*)>("set_jcpu_vm_ptr");
     set_jcpu_vm_ptr(this);
-
-
 }
 
 
