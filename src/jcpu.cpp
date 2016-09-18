@@ -4,6 +4,7 @@
 #include "jcpu_openrisc.h"
 #include "jcpu_cortexm0.h"
 #include "jcpu_arm.h"
+#include "jcpu_riscv.h"
 
 namespace jcpu{
 
@@ -20,6 +21,9 @@ jcpu * jcpu::create(const char*arch_, const char *model){
     const std::string arch(arch_);
     if(arch == "openrisc"){
         return new openrisc::openrisc(model);
+    }
+    else if(arch == "riscv"){
+        return new riscv::riscv(model);
     }
     else if(arch == "arm"){
         if(model == std::string("cortexm0"))
