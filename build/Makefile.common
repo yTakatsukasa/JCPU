@@ -26,9 +26,9 @@ CFLAGS				:= $(CXXFLAGS)
 
 NEED_CXX11			:= $(shell expr $(LLVM_VERSION) '>=' 3.5)
 ifeq ($(NEED_CXX11),1)
-CXXFLAGS			:= -std=c++11
+CXXFLAGS			+= -std=c++11
 else
-CXXFLAGS			:= -std=c++03
+CXXFLAGS			+= -std=c++03
 endif
 
 #LIB_DIRS			:=

@@ -1,5 +1,6 @@
 SRC_DIRS			:= ../src $(wildcard ../src/target-*)
 INCLUDE_DIRS		:= ../include
+
 include Makefile.common
 
 libjcpu.a:$(OBJS)
