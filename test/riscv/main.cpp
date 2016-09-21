@@ -9,17 +9,27 @@
 #include "jcpu.h"
 #include "elfio/elfio_dump.hpp"
 
+#if __cplusplus >= 201103L
+#define RISCV_OVERRIDE override
+#define RISCV_NULLPTR  nullptr
+#else
+#define RISCV_OVERRIDE 
+#define RISCV_NULLPTR  NULL
+#endif
+
+
+
 class dummy_mem : public jcpu::jcpu_ext_if{
     const jcpu::jcpu &jcpu_if;
     std::vector<uint32_t> tmp_mem;
     bool prefix_need_to_show;
 
-    virtual uint64_t mem_read(uint64_t addr, unsigned int size)override;
-    virtual void mem_write(uint64_t addr, unsigned int size, uint64_t val)override;
-    virtual uint64_t mem_read_dbg(uint64_t addr, unsigned int size) override {
+    virtual uint64_t mem_read(uint64_t addr, unsigned int size)RISCV_OVERRIDE;
+    virtual void mem_write(uint64_t addr, unsigned int size, uint64_t val)RISCV_OVERRIDE;
+    virtual uint64_t mem_read_dbg(uint64_t addr, unsigned int size) RISCV_OVERRIDE {
         return mem_read(addr, size);
     }
-    virtual void mem_write_dbg(uint64_t addr, unsigned int size, uint64_t val)override {
+    virtual void mem_write_dbg(uint64_t addr, unsigned int size, uint64_t val)RISCV_OVERRIDE {
         mem_write(addr, size, val);
     }
     public:
@@ -37,7 +47,9 @@ dummy_mem::dummy_mem(const char *fn, jcpu::jcpu &ifs) : jcpu_if(ifs) {
     }
     tmp_mem.resize(0x20000 / sizeof(tmp_mem.front()));
 
-    for( auto s : reader.sections ) {
+    //for( auto s : reader.sections ) {
+    for(std::vector<ELFIO::section*>::const_iterator it = reader.sections.begin(), it_end = reader.sections.end(); it != it_end; ++it){
+        const ELFIO::section *const s = *it;
         if(s->get_name() != ".text" &&
                 s->get_name() !=".text.init" &&
                 s->get_name() != ".rodata" &&
@@ -170,7 +182,11 @@ int main( int argc, char** argv )
 
     llvm::EnableDebugBuffering = true;
 
+#if __cplusplus >= 201103L
     std::unique_ptr<jcpu::jcpu> riscv(jcpu::jcpu::create("riscv", "reiscv"));
+#else
+    std::auto_ptr<jcpu::jcpu> riscv(jcpu::jcpu::create("riscv", "reiscv"));
+#endif
     dummy_mem mem(argv[1], *riscv);
     riscv->set_ext_interface(&mem);
     riscv->reset(true);
