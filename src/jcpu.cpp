@@ -2,8 +2,6 @@
 #include "jcpu.h"
 #include "jcpu_internal.h"
 #include "jcpu_openrisc.h"
-#include "jcpu_cortexm0.h"
-#include "jcpu_arm.h"
 #include "jcpu_riscv.h"
 
 namespace jcpu{
@@ -24,12 +22,6 @@ jcpu * jcpu::create(const char*arch_, const char *model){
     }
     else if(arch == "riscv"){
         return new riscv::riscv(model);
-    }
-    else if(arch == "arm"){
-        if(model == std::string("cortexm0"))
-            return new cortexm0::cortexm0(model);
-        else
-            return new arm::arm(model);
     }
     else{
         jcpu_assert(!"Not supported architecture");
