@@ -209,7 +209,7 @@ bool riscv_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
 bool riscv_vm::disas_insn_load_imm(target_ulong insn)
 {
     const target_ulong kind = bit_sub<2, 5>(insn);
-    const riscv_arch::reg_e dest = static_cast<riscv_arch::reg_e>(bit_sub<7, 5>(insn));
+    const riscv_arch::reg_e dest = get_reg_id<7>(insn);
     llvm::Value *const imm = gen_const(bit_sub<12, 20>(insn));
     switch(kind)
     {
@@ -234,8 +234,8 @@ bool riscv_vm::disas_insn_load_imm(target_ulong insn)
 bool riscv_vm::disas_insn_integer_imm(target_ulong insn) {
     llvm::ConstantInt *const i12 = llvm::ConstantInt::get(*context, llvm::APInt(12, bit_sub<20, 12>(insn)));
     llvm::Value *const imm = gen_const(bit_sub<20, 12>(insn));
-    const riscv_arch::reg_e dest = static_cast<riscv_arch::reg_e>(bit_sub<7, 5>(insn));
-    llvm::Value *const src = gen_get_reg(static_cast<riscv_arch::reg_e>(bit_sub<15, 5>(insn)));
+    const riscv_arch::reg_e dest = get_reg_id<7>(insn);
+    llvm::Value *const src = gen_get_reg(get_reg_id<15>(insn));
     switch(bit_sub<12, 3>(insn))
     {
         case 0://ADDI
@@ -308,8 +308,8 @@ bool riscv_vm::disas_insn_integer_imm(target_ulong insn) {
 
 bool riscv_vm::disas_insn_integer_reg(target_ulong insn) {
     llvm::Value *const src[2] = {
-        gen_get_reg(static_cast<riscv_arch::reg_e>(bit_sub<15, 5>(insn))),
-        gen_get_reg(static_cast<riscv_arch::reg_e>(bit_sub<20, 5>(insn)))
+        gen_get_reg(get_reg_id<15>(insn)),
+        gen_get_reg(get_reg_id<20>(insn))
     };
     const target_ulong funct3 = bit_sub<12, 3>(insn);
     const target_ulong funct7 = bit_sub<25, 7>(insn);
@@ -352,7 +352,7 @@ bool riscv_vm::disas_insn_integer_reg(target_ulong insn) {
             break;
         default:jcpu_assert(!"Never comes here");
     }
-    const riscv_arch::reg_e dest = static_cast<riscv_arch::reg_e>(bit_sub<7, 5>(insn));
+    const riscv_arch::reg_e dest = get_reg_id<7>(insn);
     gen_set_reg(dest, result);
 
     return false; 
@@ -361,8 +361,8 @@ bool riscv_vm::disas_insn_integer_reg(target_ulong insn) {
 
 bool riscv_vm::disas_insn_load(target_ulong insn) {
     llvm::ConstantInt *const i12 = llvm::ConstantInt::get(*context, llvm::APInt(12, bit_sub<20, 12>(insn)));
-    const riscv_arch::reg_e dest = static_cast<riscv_arch::reg_e>(bit_sub<7, 5>(insn));
-    llvm::Value *const base = gen_get_reg(static_cast<riscv_arch::reg_e>(bit_sub<15, 5>(insn)));
+    const riscv_arch::reg_e dest = get_reg_id<7>(insn);
+    llvm::Value *const base = gen_get_reg(get_reg_id<15>(insn));
     llvm::Value *const extended = builder->CreateSExt(i12, get_reg_type());
     llvm::Value *const addr = builder->CreateAdd(extended, base, "load");
     const target_ulong opc = bit_sub<12, 3>(insn);
@@ -419,8 +419,8 @@ bool riscv_vm::disas_insn_store(target_ulong insn) {
 
     const target_ulong offset_tmp = (bit_sub<25, 7>(insn) << 5) | bit_sub<7, 5>(insn);
     llvm::ConstantInt *const i12 = llvm::ConstantInt::get(*context, llvm::APInt(12, offset_tmp));
-    llvm::Value *const val = gen_get_reg(static_cast<riscv_arch::reg_e>(bit_sub<20, 5>(insn)));
-    llvm::Value *const base = gen_get_reg(static_cast<riscv_arch::reg_e>(bit_sub<15, 5>(insn)));
+    llvm::Value *const val = gen_get_reg(get_reg_id<20>(insn));
+    llvm::Value *const base = gen_get_reg(get_reg_id<15>(insn));
     llvm::Value *const extended = builder->CreateSExt(i12, get_reg_type(), mn[opc]);
     llvm::Value *const addr = builder->CreateAdd(extended, base, mn[opc]);
 
@@ -446,8 +446,8 @@ bool riscv_vm::disas_insn_cond_branch(target_ulong insn) {
     llvm::Value *const just_4 = gen_const(4);
 
     llvm::Value *const val[2] = {
-        gen_get_reg(static_cast<riscv_arch::reg_e>(bit_sub<15, 5>(insn))),
-        gen_get_reg(static_cast<riscv_arch::reg_e>(bit_sub<20, 5>(insn)))
+        gen_get_reg(get_reg_id<15>(insn)),
+        gen_get_reg(get_reg_id<20>(insn))
     };
 
     llvm::Value * flag = NULL;
@@ -492,10 +492,10 @@ bool riscv_vm::disas_insn_jump(target_ulong insn) {
         static const char *const mn = "jalr";
         llvm::ConstantInt *const i12 = llvm::ConstantInt::get(*context, llvm::APInt(12, bit_sub<20, 12>(insn)));
         llvm::Value *const extended = builder->CreateSExt(i12, get_reg_type(), mn);
-        llvm::Value *const base = gen_get_reg(static_cast<riscv_vm::reg_e>(bit_sub<15, 5>(insn)));
+        llvm::Value *const base = gen_get_reg(get_reg_id<15>(insn));
         llvm::Value *const next_pc = builder->CreateAdd(base, extended, mn);
         llvm::Value *const return_pc = builder->CreateAdd(gen_get_pc(), gen_const(4), mn);
-        gen_set_reg(static_cast<riscv_vm::reg_e>(bit_sub<7, 5>(insn)), return_pc);
+        gen_set_reg(get_reg_id<7>(insn), return_pc);
         gen_set_reg(riscv_arch::REG_PNEXT_PC, next_pc);
     }
     else {//jal
@@ -511,7 +511,7 @@ bool riscv_vm::disas_insn_jump(target_ulong insn) {
         llvm::Value *const cur_pc = gen_get_pc();
         llvm::Value *const next_pc = builder->CreateAdd(cur_pc, extended, mn);
         llvm::Value *const return_pc = builder->CreateAdd(cur_pc, gen_const(4), mn);
-        gen_set_reg(static_cast<riscv_vm::reg_e>(bit_sub<7, 5>(insn)), return_pc);
+        gen_set_reg(get_reg_id<7>(insn), return_pc);
         gen_set_reg(riscv_arch::REG_PNEXT_PC, next_pc);
     }
     return true; 
