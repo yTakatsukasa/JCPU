@@ -20,17 +20,16 @@ run.x:$(OBJS)
 	@echo Compiling $< $(SHOW_MSG)
 	$(SHOW_CMD_LINE) $(CC)	$(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-elfio.zip:
-	wget https://github.com/serge1/ELFIO/archive/master.zip -O elfio.zip
+.elfio.zip:
+	wget https://github.com/serge1/ELFIO/archive/master.zip -O $@
 
-elfio:elfio.zip
-	@if [ ! -d ELFIO-master -a ! -d elfio ]; then unzip elfio.zip; fi
+elfio:.elfio.zip
+	@if [ ! -d ELFIO-master -a ! -d elfio ]; then unzip .elfio.zip; fi
 	@if [ ! -d elfio ]; then mv ELFIO-master/elfio ./; fi
 	@if [ -d ELFIO-master ]; then rm -rf ELFIO-master; fi
 
-
 clean:
 	rm -f .*.[do] *.x
-	rm -rf elfio
+	rm -rf ELFIO-master
 
 -include $(wildcard .*.d)
