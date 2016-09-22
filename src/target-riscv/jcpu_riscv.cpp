@@ -25,7 +25,7 @@ namespace jcpu{
 namespace riscv{
 
 struct riscv_arch{
-    typedef uint32_t target_ulong;
+    typedef uint64_t target_ulong;
     const static unsigned int reg_bit_width = sizeof(target_ulong) * 8;
     typedef vm::primitive_type_holder<target_ulong, riscv_arch, 0> virt_addr_t;
     typedef vm::primitive_type_holder<target_ulong, riscv_arch, 1> phys_addr_t;
@@ -157,7 +157,7 @@ bool riscv_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
             vm.processing_pc.pop();
         }
     } push_and_pop_pc(*this, pc_v, pc);
-    const target_ulong insn = ext_ifs.mem_read(pc, sizeof(target_ulong));
+    const target_ulong insn = ext_ifs.mem_read(pc, 4);
     const unsigned int kind = bit_sub<2, 5>(insn);
 #if defined(JCPU_RISCV_DEBUG) && JCPU_RISCV_DEBUG > 0
     std::cout << std::hex << "pc:" << pc << " INSN:" << std::setw(8) << std::setfill('0') << insn << " kind:" << kind << std::endl;
