@@ -351,7 +351,7 @@ llvm::Value *jcpu_vm_base<ARCH>::gen_cond_code(llvm::Value *cond, llvm::Value *t
 template<typename ARCH>
 llvm::CallInst * jcpu_vm_base<ARCH>::gen_sw(llvm::Value *addr, unsigned int len, llvm::Value *val)const{
     jcpu_assert(len == 1 || len == 2 || len == 4 || len == 8);
-    llvm::Value *const len_llvm = gen_const(len);
+    llvm::Value *const len_llvm = llvm::ConstantInt::get(*context, llvm::APInt(sizeof(unsigned int)*8, len));
     return builder->CreateCall3(
             mod->getFunction("helper_mem_write"),
             builder->CreateZExt(addr, builder->getInt64Ty()), 
@@ -363,7 +363,7 @@ llvm::CallInst * jcpu_vm_base<ARCH>::gen_sw(llvm::Value *addr, unsigned int len,
 template<typename ARCH>
 llvm::Value * jcpu_vm_base<ARCH>::gen_lw(llvm::Value *addr, unsigned int len, const char *mn)const{
     jcpu_assert(len == 1 || len == 2 || len == 4 || len == 8);
-    llvm::Value *const len_llvm = gen_const(len);
+    llvm::Value *const len_llvm = llvm::ConstantInt::get(*context, llvm::APInt(sizeof(unsigned int)*8, len));
     llvm::CallInst *const cinst = builder->CreateCall2(mod->getFunction("helper_mem_read"),
             builder->CreateZExt(addr, builder->getInt64Ty()),
             len_llvm, mn);
