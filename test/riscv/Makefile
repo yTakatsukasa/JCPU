@@ -1,5 +1,5 @@
 SRC_DIRS			:= . ../../src $(wildcard ../../src/target-*)
-INCLUDE_DIRS		:=  ../../include .
+INCLUDE_DIRS		:=  ../../src ../../include .
 LLVM_CONFIG			?= /opt/llvm/3.3-debug/bin/llvm-config
 LIB_DIRS			:= ../../build
 LIBS				:= dl

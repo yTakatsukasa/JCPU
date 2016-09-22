@@ -1,5 +1,5 @@
 SRC_DIRS			:= ../src $(wildcard ../src/target-*)
-INCLUDE_DIRS		:= ../include
+INCLUDE_DIRS		:= ../include ../src
 
 include Makefile.common
 

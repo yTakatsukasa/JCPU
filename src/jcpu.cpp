@@ -1,8 +1,8 @@
 #include <cassert>
 #include "jcpu.h"
 #include "jcpu_internal.h"
-#include "jcpu_openrisc.h"
-#include "jcpu_riscv.h"
+#include "target-openrisc/jcpu_openrisc.h"
+#include "target-riscv/jcpu_riscv.h"
 
 namespace jcpu{
 
