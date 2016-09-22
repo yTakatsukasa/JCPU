@@ -185,12 +185,10 @@ int main( int argc, char** argv )
         return 1;
     }
 
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    //llvm::InitializeAllTargetMCs();
+    jcpu::jcpu::initialize();
+
     llvm::sys::PrintStackTraceOnErrorSignal();
     llvm::PrettyStackTraceProgram X(argc, argv);
-
     llvm::EnableDebugBuffering = true;
 
 #if __cplusplus >= 201103L
