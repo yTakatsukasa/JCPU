@@ -52,6 +52,12 @@ typedef vm::bb_manager<riscv_arch> bb_manager;
 typedef vm::break_point<riscv_arch> break_point;
 typedef vm::bp_manager<riscv_arch> bp_manager;
 
+template<unsigned int bit, typename T>
+inline riscv_arch::reg_e get_reg_id(T v){
+    return static_cast<riscv_arch::reg_e>(bit_sub<bit, 5>(v));
+}
+
+
 class riscv_vm : public vm::jcpu_vm_base<riscv_arch>{
     //gdb_target_if
     virtual void get_reg_value(std::vector<uint64_t> &)const JCPU_OVERRIDE;
@@ -69,6 +75,7 @@ class riscv_vm : public vm::jcpu_vm_base<riscv_arch>{
     bool disas_insn_store(target_ulong insn);
     bool disas_insn_cond_branch(target_ulong insn);
     bool disas_insn_jump(target_ulong insn);
+    bool disas_insn_64bit_integer(target_ulong insn);
 
     llvm::Value *gen_arith_code_with_ovf_check(llvm::Value *, llvm::Value*, llvm::Value * (vm::ir_builder_wrapper::*)(llvm::Value *, llvm::Value *, const char *)const, const char *);
     virtual void start_func(phys_addr_t) JCPU_OVERRIDE;
@@ -180,12 +187,15 @@ bool riscv_vm::disas_insn(virt_addr_t pc_v, int *const insn_depth){
             return disas_insn_store(insn);
         case 0x18:
             return disas_insn_cond_branch(insn);
+        case 0x06:
+            return disas_insn_64bit_integer(insn);
         case 0x19://jalr
         case 0x1b://jal
             return disas_insn_jump(insn);
         default:
             builder->CreateCall(mod->getFunction("jcpu_vm_dump_regs"));
             dump_regs();
+            std::cout << "INSN:" << std::hex << insn << std::endl;
             jcpu_assert(!"Not supported insn");
     }
 
@@ -505,8 +515,39 @@ bool riscv_vm::disas_insn_jump(target_ulong insn) {
         gen_set_reg(riscv_arch::REG_PNEXT_PC, next_pc);
     }
     return true; 
-} 
+}
 
+bool riscv_vm::disas_insn_64bit_integer(target_ulong insn)
+{
+    jcpu_assert(riscv_arch::reg_bit_width == 64);
+    const unsigned int opc = bit_sub<12, 3>(insn);
+    llvm::Type *const int_32_type = builder->getInt32Ty();
+
+    switch(opc) {
+        case 0://addiw
+            {
+                static const char *const mn = "addiw";
+                llvm::Value *const imm = gen_const(bit_sub<20, 12>(insn));
+                llvm::Value *const imm_trunc = builder->CreateTrunc(imm, int_32_type);
+                llvm::Value *const src = gen_get_reg(get_reg_id<15>(insn), mn);
+                llvm::Value *const trunc = builder->CreateTrunc(src, int_32_type, mn);
+                llvm::Value *const sum = builder->CreateAdd(imm_trunc, trunc, mn);
+                gen_set_reg(get_reg_id<7>(insn), builder->CreateSExt(sum, get_reg_type(), mn));
+            }
+            break;
+            /*
+        case 1://slliw
+            break;
+        case 2://slrliw
+            break;
+        case 3://sraiw
+            break;
+            */
+        default:
+            jcpu_assert(!"Not supported insn");
+    }
+    return false;
+}
 
 
 
