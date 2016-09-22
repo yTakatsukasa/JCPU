@@ -21,3 +21,10 @@ TODO:
 4) More documentation
 
 5) Can run on LLVM-3.6 and newer
+
+==== Memo
+
+Building toolchain
+Openrisc https://pixman.miraheze.org/wiki/OpenRISC_Support#..._for_Gentoo_Linux
+
+RISC-V https://riscv.org/software-tools/risc-v-gnu-compiler-toolchain/
