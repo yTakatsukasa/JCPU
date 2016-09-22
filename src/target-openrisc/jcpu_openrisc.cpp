@@ -65,6 +65,11 @@ struct openrisc_arch{
     static const target_ulong exception_vector[];
 };
 
+template<unsigned int bit, typename T>
+inline openrisc_arch::reg_e get_reg_id(T insn) {
+    return static_cast<openrisc_arch::reg_e>(bit_sub<bit, 5>(insn));
+}
+
 const openrisc_arch::target_ulong openrisc_arch::exception_vector[] = {
     0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0x700, 0x800, 0x900, 0xA00, 0xB00, 0xC00
 };
@@ -269,9 +274,9 @@ bool openrisc_vm::disas_arith(target_ulong insn){
     const target_ulong op = bit_sub<0, 4>(insn);
     const target_ulong op2 = bit_sub<8, 2>(insn);
     const target_ulong op3 = bit_sub<6, 4>(insn);
-    const openrisc_arch::reg_e rD = static_cast<openrisc_arch::reg_e>(bit_sub<21, 5>(insn));
-    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
-    const openrisc_arch::reg_e rB = static_cast<openrisc_arch::reg_e>(bit_sub<11, 5>(insn));
+    const openrisc_arch::reg_e rD = get_reg_id<21>(insn);
+    const openrisc_arch::reg_e rA = get_reg_id<16>(insn);
+    const openrisc_arch::reg_e rB = get_reg_id<11>(insn);
     if(op2 == 0){
         switch(op){
             case 0x00://l.add rD = aA + rB, SR[CY] = unsigned overflow(carry), SR[OV] = signed overflow
@@ -416,8 +421,8 @@ bool openrisc_vm::disas_arith(target_ulong insn){
 bool openrisc_vm::disas_logical(target_ulong insn){
     using namespace llvm;
     const target_ulong op = bit_sub<6, 2>(insn);
-    const openrisc_arch::reg_e rD = static_cast<openrisc_arch::reg_e>(bit_sub<21, 5>(insn));
-    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
+    const openrisc_arch::reg_e rD = get_reg_id<21>(insn);
+    const openrisc_arch::reg_e rA = get_reg_id<16>(insn);
 
     //ConstantInt *const L_64 = ConstantInt::get(*context, APInt(6, bit_sub<0, 6>(insn)));
     ConstantInt *const L_32 = ConstantInt::get(*context, APInt(openrisc_arch::reg_bit_width, bit_sub<0, 5>(insn)));
@@ -441,7 +446,7 @@ bool openrisc_vm::disas_logical(target_ulong insn){
 bool openrisc_vm::disas_compare_immediate(target_ulong insn){
     using namespace llvm;
     const target_ulong op0 = bit_sub<21, 5>(insn);
-    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
+    const openrisc_arch::reg_e rA = get_reg_id<16>(insn);
     ConstantInt *const I16 = ConstantInt::get(*context, APInt(16, bit_sub<0, 16>(insn)));
     Value *const I16s = builder->CreateSExt(I16, get_reg_type());
 
@@ -480,8 +485,8 @@ bool openrisc_vm::disas_compare_immediate(target_ulong insn){
 bool openrisc_vm::disas_compare(target_ulong insn){
     using namespace llvm;
     const target_ulong op0 = bit_sub<21, 5>(insn);
-    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
-    const openrisc_arch::reg_e rB = static_cast<openrisc_arch::reg_e>(bit_sub<11, 5>(insn));
+    const openrisc_arch::reg_e rA = get_reg_id<16>(insn);
+    const openrisc_arch::reg_e rB = get_reg_id<11>(insn);
 
     switch(op0){
         case 0x00: //l.sfeq SR[F] = rA == rB
@@ -524,9 +529,9 @@ bool openrisc_vm::disas_others(target_ulong insn, int *const insn_depth){
     using namespace llvm;
     const target_ulong op0 = bit_sub<26, 6>(insn);
     const target_ulong op1 = bit_sub<24, 2>(insn);
-    const openrisc_arch::reg_e rD = static_cast<openrisc_arch::reg_e>(bit_sub<21, 5>(insn));
-    const openrisc_arch::reg_e rA = static_cast<openrisc_arch::reg_e>(bit_sub<16, 5>(insn));
-    const openrisc_arch::reg_e rB = static_cast<openrisc_arch::reg_e>(bit_sub<11, 5>(insn));
+    const openrisc_arch::reg_e rD = get_reg_id<21>(insn);
+    const openrisc_arch::reg_e rA = get_reg_id<16>(insn);
+    const openrisc_arch::reg_e rB = get_reg_id<11>(insn);
     //const target_ulong lo6 = bit_sub<5, 6>(insn);
     //const target_ulong k5 = bit_sub<0, 5>(insn);
     ConstantInt *const lo16 = ConstantInt::get(*context, APInt(16, bit_sub<0, 16>(insn)));
