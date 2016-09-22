@@ -20,22 +20,21 @@ CreateGetElementPtrInst(llvm::Value *Ptr, llvm::ArrayRef<llvm::Value *> IdxList,
 }
 
 
-//FIXME set register bit width
-void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsigned int address_space) {
+void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsigned int address_space, unsigned int reg_bit) {
     using namespace llvm;
 
     // Type Definitions
     std::vector<Type*>FuncTy_2_args;
     FuncTy_2_args.push_back(IntegerType::get(mod->getContext(), 16));
     FunctionType* FuncTy_2 = FunctionType::get(
-            /*Result=*/IntegerType::get(mod->getContext(), 32),
+            /*Result=*/IntegerType::get(mod->getContext(), reg_bit),
             /*Params=*/FuncTy_2_args,
             /*isVarArg=*/false);
 
 
     std::vector<Type*>FuncTy_4_args;
     FuncTy_4_args.push_back(IntegerType::get(mod->getContext(), 16));
-    FuncTy_4_args.push_back(IntegerType::get(mod->getContext(), 32));
+    FuncTy_4_args.push_back(IntegerType::get(mod->getContext(), reg_bit));
     FunctionType* FuncTy_4 = FunctionType::get(
             /*Result=*/Type::getVoidTy(mod->getContext()),
             /*Params=*/FuncTy_4_args,
@@ -81,7 +80,7 @@ void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsi
         ptr_9_indices.push_back(int64_8);
         Instruction *ptr_9 = CreateGetElementPtrInst(gvar_array_regs, ptr_9_indices, "", label_7, *mod);
         LoadInst* int32_10 = new LoadInst(ptr_9, "", false, label_7);
-        int32_10->setAlignment(4);
+        int32_10->setAlignment(reg_bit / 8);
         ReturnInst::Create(mod->getContext(), int32_10, label_7);
 
     }
@@ -103,7 +102,7 @@ void make_set_get(llvm::Module *mod, llvm::GlobalVariable *gvar_array_regs, unsi
         ptr_15_indices.push_back(int64_14);
         Instruction* ptr_15 = CreateGetElementPtrInst(gvar_array_regs, ptr_15_indices, "", label_13, *mod);
         StoreInst* void_16 = new StoreInst(int32_val, ptr_15, false, label_13);
-        void_16->setAlignment(4);
+        void_16->setAlignment(reg_bit / 8);
         ReturnInst::Create(mod->getContext(), label_13);
 
     }

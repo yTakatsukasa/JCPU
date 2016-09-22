@@ -107,7 +107,7 @@ riscv_vm::riscv_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<riscv_arch>(ifs)
 #endif
     global_regs->setAlignment(bit / 8);
 
-    vm::make_set_get(mod, global_regs, address_space);
+    vm::make_set_get(mod, global_regs, address_space, bit);
     vm::make_mem_access(mod, address_space);
     vm::make_debug_func(mod, address_space);
 

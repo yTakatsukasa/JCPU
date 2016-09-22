@@ -133,7 +133,7 @@ openrisc_vm::openrisc_vm(jcpu_ext_if &ifs) : vm::jcpu_vm_base<openrisc_arch>(ifs
     llvm::GlobalVariable *const global_regs = new llvm::GlobalVariable(*mod, ATy, true, llvm::GlobalValue::CommonLinkage, init, "regs", 0, llvm::GlobalVariable::NotThreadLocal, address_space);
     global_regs->setAlignment(bit / 8);
 
-    vm::make_set_get(mod, global_regs, address_space);
+    vm::make_set_get(mod, global_regs, address_space, bit);
     vm::make_mem_access(mod, address_space);
     vm::make_debug_func(mod, address_space);
 

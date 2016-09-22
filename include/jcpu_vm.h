@@ -22,7 +22,7 @@ enum jcpu_vm_arch_e{
     JCPU_ARCH_ARM
 };
 
-void make_set_get(llvm::Module *, llvm::GlobalVariable *, unsigned int);
+void make_set_get(llvm::Module *, llvm::GlobalVariable *, unsigned int, unsigned int);
 void make_mem_access(llvm::Module *, unsigned int);
 void make_debug_func(llvm::Module *, unsigned int);
 
