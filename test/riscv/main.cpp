@@ -117,11 +117,9 @@ uint64_t dummy_mem::mem_read(uint64_t addr, unsigned int size){
         v &= 0xFFFF;
     }
     else if(size == 8){
-        v = 0;
-        for(int i = 0; i < 8; ++i){
-            v <<= 8;
-            v |= mem_read(addr + i, 1);
-        }
+        v = tmp_mem[addr / 4 + 1];
+        v <<= 32;
+        v = tmp_mem[addr / 4 + 0];
     }
     return v;
 }
@@ -136,11 +134,12 @@ void dummy_mem::mem_write(uint64_t addr, unsigned int size, uint64_t val){
             tmp_mem[addr / 4] &= 0xFFFFFFFF ^ (0xFF << ((addr % 4) * 8));
             tmp_mem[addr / 4] |= val;
         }
-        //else if(size == 2){
-        //}
-        else{
-            std::cerr << "Write for Address " << std::hex << addr << " with size:" << size << " is not supported" << std::endl;
+        else if(size == 2){
             abort();
+        }
+        else if(size == 8){
+            tmp_mem[addr / 4 + 0] = val & 0xFFFFFFFF;
+            tmp_mem[addr / 4 + 1] = val >> 32;
         }
     }
     else if(addr == 0x60000004){
