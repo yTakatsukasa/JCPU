@@ -5,9 +5,9 @@ CXX				:= ${TOOL_CHAIN_PATH}/${ARCH}-g++
 LD				:= ${TOOL_CHAIN_PATH}/${ARCH}-gcc
 OBJDUMP			:= ${TOOL_CHAIN_PATH}/${ARCH}-objdump
 OBJCOPY			:= ${TOOL_CHAIN_PATH}/${ARCH}-objcopy
-CFLAGS			:= -g -m32
+CFLAGS			:= -g -m64
 CPPFLAGS		:=
-LDFLAGS			:= -m32 -nostdlib -static -T simple_link.lnk
+LDFLAGS			:= -m64 -nostdlib -static -T simple_link.lnk
 
 SRC_DIRS		:= ./
 SRCS				:= $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp $(dir)/*.c $(dir)/*.S))
